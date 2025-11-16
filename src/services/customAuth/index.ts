@@ -31,18 +31,39 @@ export class CustomAuthService {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
+    // Check both client-side and server-side env vars
     const envUrl =
       typeof window !== 'undefined'
         ? process.env.NEXT_PUBLIC_CUSTOM_API_BASE_URL
-        : undefined;
+        : process.env.NEXT_PUBLIC_CUSTOM_API_BASE_URL;
     
+    // During build time (SSG/SSR), allow empty baseUrl
+    // Will only throw error when actually trying to use the service
     if (!baseUrl && !envUrl) {
+      // If we're in build mode (no window and no actual request), use placeholder
+      if (typeof window === 'undefined') {
+        this.baseUrl = 'http://placeholder-for-build.local';
+        console.warn('⚠️  CustomAuthService: NEXT_PUBLIC_CUSTOM_API_BASE_URL not set during build. Using placeholder.');
+        return;
+      }
+      
       throw new Error(
         'NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured! Please set it in your .env file.'
       );
     }
     
     this.baseUrl = baseUrl || envUrl!;
+  }
+
+  /**
+   * Validate that baseUrl is properly configured (not a placeholder)
+   */
+  private validateBaseUrl(): void {
+    if (this.baseUrl === 'http://placeholder-for-build.local') {
+      throw new Error(
+        'NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured! Please set it in your .env file.'
+      );
+    }
   }
 
   /**
@@ -110,6 +131,7 @@ export class CustomAuthService {
    * Login with email and password
    */
   async login(credentials: LoginRequest): Promise<TokenResponse> {
+    this.validateBaseUrl();
     const response = await fetch(`${this.baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: {
@@ -143,6 +165,7 @@ export class CustomAuthService {
    * Register a new user
    */
   async register(data: RegisterRequest): Promise<UserResponse> {
+    this.validateBaseUrl();
     const response = await fetch(`${this.baseUrl}/api/auth/register`, {
       method: 'POST',
       headers: {
@@ -164,6 +187,7 @@ export class CustomAuthService {
    * Get current authenticated user
    */
   async getCurrentUser(): Promise<UserResponse | null> {
+    this.validateBaseUrl();
     const token = this.getAccessToken();
     if (!token) return null;
 
@@ -203,6 +227,7 @@ export class CustomAuthService {
     endpoint: string,
     options: globalThis.RequestInit = {},
   ): Promise<Response> {
+    this.validateBaseUrl();
     const token = this.getAccessToken();
     if (!token) {
       throw new Error('Not authenticated');

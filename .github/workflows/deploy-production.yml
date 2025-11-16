@@ -22,6 +22,11 @@ jobs:
     # Só roda se for push na main OU se PR foi merged
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     
+    # Permissões necessárias para push no GitHub Container Registry
+    permissions:
+      contents: read
+      packages: write
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

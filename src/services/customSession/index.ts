@@ -46,7 +46,7 @@ export class CustomSessionService {
         console.warn('⚠️  CustomSessionService: NEXT_PUBLIC_CUSTOM_API_BASE_URL not set during build. Using placeholder.');
         return;
       }
-      
+
       throw new Error(
         'NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured! Please set it in your .env file.',
       );
@@ -64,6 +64,18 @@ export class CustomSessionService {
         'NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured! Please set it in your .env file.'
       );
     }
+  }
+
+  /**
+   * Build full URL for an endpoint, avoiding duplicated segments like `/api/api`.
+   */
+  private buildUrl(endpoint: string): string {
+    const base = this.baseUrl.replace(/\/+$/g, '');
+    let path = endpoint.replace(/^\/+/g, '');
+    if (base.endsWith('/api') && path.startsWith('api/')) {
+      path = path.replace(/^api\//, '');
+    }
+    return `${base}/${path}`;
   }
 
   /**
@@ -85,7 +97,7 @@ export class CustomSessionService {
       headers.set('Content-Type', 'application/json');
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(this.buildUrl(endpoint), {
       ...options,
       headers,
     });

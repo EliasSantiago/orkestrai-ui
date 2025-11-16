@@ -36,7 +36,7 @@ export class CustomAuthService {
       typeof window !== 'undefined'
         ? process.env.NEXT_PUBLIC_CUSTOM_API_BASE_URL
         : process.env.NEXT_PUBLIC_CUSTOM_API_BASE_URL;
-    
+
     // During build time (SSG/SSR), allow empty baseUrl
     // Will only throw error when actually trying to use the service
     if (!baseUrl && !envUrl) {
@@ -46,12 +46,12 @@ export class CustomAuthService {
         console.warn('⚠️  CustomAuthService: NEXT_PUBLIC_CUSTOM_API_BASE_URL not set during build. Using placeholder.');
         return;
       }
-      
+
       throw new Error(
         'NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured! Please set it in your .env file.'
       );
     }
-    
+
     this.baseUrl = baseUrl || envUrl!;
   }
 
@@ -64,6 +64,19 @@ export class CustomAuthService {
         'NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured! Please set it in your .env file.'
       );
     }
+  }
+
+  /**
+   * Build full URL for an endpoint, avoiding duplicated segments like `/api/api`.
+   */
+  private buildUrl(endpoint: string): string {
+    const base = this.baseUrl.replace(/\/+$/g, '');
+    let path = endpoint.replace(/^\/+/g, '');
+    // If base already ends with '/api' and path starts with 'api/', remove the duplicate.
+    if (base.endsWith('/api') && path.startsWith('api/')) {
+      path = path.replace(/^api\//, '');
+    }
+    return `${base}/${path}`;
   }
 
   /**
@@ -132,7 +145,7 @@ export class CustomAuthService {
    */
   async login(credentials: LoginRequest): Promise<TokenResponse> {
     this.validateBaseUrl();
-    const response = await fetch(`${this.baseUrl}/api/auth/login`, {
+    const response = await fetch(this.buildUrl('/api/auth/login'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -166,7 +179,7 @@ export class CustomAuthService {
    */
   async register(data: RegisterRequest): Promise<UserResponse> {
     this.validateBaseUrl();
-    const response = await fetch(`${this.baseUrl}/api/auth/register`, {
+    const response = await fetch(this.buildUrl('/api/auth/register'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -191,7 +204,7 @@ export class CustomAuthService {
     const token = this.getAccessToken();
     if (!token) return null;
 
-    const response = await fetch(`${this.baseUrl}/api/auth/me`, {
+    const response = await fetch(this.buildUrl('/api/auth/me'), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -239,7 +252,7 @@ export class CustomAuthService {
       headers.set('Content-Type', 'application/json');
     }
 
-    return fetch(`${this.baseUrl}${endpoint}`, {
+    return fetch(this.buildUrl(endpoint), {
       ...options,
       headers,
     });

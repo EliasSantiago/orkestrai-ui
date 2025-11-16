@@ -9,13 +9,13 @@
 
 [![][image-banner]][vercel-link]
 
-# Lobe Chat
+# Custom LobeChat
 
-An open-source, modern design ChatGPT/LLMs UI/framework.<br/>
-Supports speech synthesis, multi-modal, and extensible ([function call][docs-function-call]) plugin system.<br/>
-One-click **FREE** deployment of your private OpenAI ChatGPT/Claude/Gemini/Groq/Ollama chat application.
+A customized, modern design ChatGPT/LLMs UI/Framework with custom authentication and API integration.<br/>
+Supports speech synthesis, multi-modal, and extensible plugin system.<br/>
+Optimized for production deployment with Docker and CI/CD automation.
 
-**English** · [简体中文](./README.zh-CN.md) · [Official Site][official-site] · [Changelog][changelog] · [Documents][docs] · [Blog][blog] · [Feedback][github-issues-link]
+**Custom Production Build** · Based on [LobeChat](https://github.com/lobehub/lobe-chat)
 
 <!-- SHIELD GROUP -->
 
@@ -31,22 +31,9 @@ One-click **FREE** deployment of your private OpenAI ChatGPT/Claude/Gemini/Groq/
 [![][github-forks-shield]][github-forks-link]
 [![][github-stars-shield]][github-stars-link]
 [![][github-issues-shield]][github-issues-link]
-[![][github-license-shield]][github-license-link]<br>
-[![][sponsor-shield]][sponsor-link]
+[![][github-license-shield]][github-license-link]
 
-**Share LobeChat Repository**
-
-[![][share-x-shield]][share-x-link]
-[![][share-telegram-shield]][share-telegram-link]
-[![][share-whatsapp-shield]][share-whatsapp-link]
-[![][share-reddit-shield]][share-reddit-link]
-[![][share-weibo-shield]][share-weibo-link]
-[![][share-mastodon-shield]][share-mastodon-link]
-[![][share-linkedin-shield]][share-linkedin-link]
-
-<sup>Pioneering the new age of thinking and creating. Built for you, the Super Individual.</sup>
-
-[![][github-trending-shield]][github-trending-url] <br /> <br /> <a href="https://vercel.com/oss"> <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge.svg" /> </a>
+<sup>Custom Production Build - Optimized for Enterprise Deployment</sup>
 
 ![][image-overview]
 
@@ -928,8 +915,6 @@ This project is [LobeHub Community License](./LICENSE) licensed.
 [share-whatsapp-shield]: https://img.shields.io/badge/-share%20on%20whatsapp-black?labelColor=black&logo=whatsapp&logoColor=white&style=flat-square
 [share-x-link]: https://x.com/intent/tweet?hashtags=chatbot%2CchatGPT%2CopenAI&text=Check%20this%20GitHub%20repository%20out%20%F0%9F%A4%AF%20LobeChat%20-%20An%20open-source%2C%20extensible%20%28Function%20Calling%29%2C%20high-performance%20chatbot%20framework.%20It%20supports%20one-click%20free%20deployment%20of%20your%20private%20ChatGPT%2FLLM%20web%20application.&url=https%3A%2F%2Fgithub.com%2Flobehub%2Flobe-chat
 [share-x-shield]: https://img.shields.io/badge/-share%20on%20x-black?labelColor=black&logo=x&logoColor=white&style=flat-square
-[sponsor-link]: https://opencollective.com/lobehub 'Become ❤️ LobeHub Sponsor'
-[sponsor-shield]: https://img.shields.io/badge/-Sponsor%20LobeHub-f04f88?logo=opencollective&logoColor=white&style=flat-square
 [submit-agents-link]: https://github.com/lobehub/lobe-chat-agents
 [submit-agents-shield]: https://img.shields.io/badge/🤖/🏪_submit_agent-%E2%86%92-c4f042?labelColor=black&style=for-the-badge
 [submit-plugin-link]: https://github.com/lobehub/lobe-chat-plugins

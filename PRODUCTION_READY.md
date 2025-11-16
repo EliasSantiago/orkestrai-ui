@@ -13,7 +13,6 @@
 - ✅ Criados novos guias de produção:
   - `DEPLOY.md` - Guia completo de deploy
   - `PRODUCTION.md` - Configuração rápida
-  - `README.PRODUCTION.md` - Resumo executivo
 
 ### ✅ Configuração Backend
 - ✅ URL do backend configurada: **http://34.42.168.19:8001/api**
@@ -116,7 +115,6 @@ git push
 lobechat-custom/
 ├── DEPLOY.md                     ← Guia COMPLETO de deploy
 ├── PRODUCTION.md                 ← Configuração rápida
-├── README.PRODUCTION.md          ← Resumo executivo
 ├── .env.docker.prod.example      ← Template de configuração
 ├── .env.docker.prod              ← SUA configuração (não commitar!)
 ├── docker-compose.prod.yml       ← Docker Compose produção
@@ -217,7 +215,7 @@ curl http://34.42.168.19:8001/
 
 - **Deploy:** [DEPLOY.md](./DEPLOY.md) ← **LEIA ISTO PRIMEIRO!**
 - **Config Rápida:** [PRODUCTION.md](./PRODUCTION.md)
-- **README:** [README.PRODUCTION.md](./README.PRODUCTION.md)
+- **README:** [START.md](./START.md)
 
 ---
 

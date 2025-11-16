@@ -52,6 +52,9 @@ chmod +x docker-prod.sh && ./docker-prod.sh build && ./docker-prod.sh start
 | Arquivo | Descrição | Quando Usar |
 |---------|-----------|-------------|
 | **[PRODUCTION_READY.md](./PRODUCTION_READY.md)** | Status e checklist | ⭐ **Leia primeiro!** |
+| **[GITHUB_SECRETS_SETUP.md](./GITHUB_SECRETS_SETUP.md)** | Configurar secrets | 🔐 **Secrets do GitHub** |
+| **[SSH_KEYS_GUIDE.md](./SSH_KEYS_GUIDE.md)** | Obter SSH keys | 🔑 **Como obter GCP_USERNAME/KEY** |
+| **[SSH_KEY_SETUP_SERVER.md](./SSH_KEY_SETUP_SERVER.md)** | Adicionar chave no servidor | 🔧 **Configurar SSH no servidor** |
 | **[DEPLOY.md](./DEPLOY.md)** | Guia completo | Quando for fazer deploy |
 | **[PRODUCTION.md](./PRODUCTION.md)** | Referência rápida | Comandos e configuração |
 | **[CI_CD_SETUP.md](./CI_CD_SETUP.md)** | CI/CD Automático | Deploy automático 🤖 |
@@ -65,7 +68,7 @@ chmod +x docker-prod.sh && ./docker-prod.sh build && ./docker-prod.sh start
 cd ~/chat-ui
 
 # 1. Configurar .env
-cp .env.docker.prod.example .env.docker.prod
+cp .env.docker.prod.example .env.docker.prcod
 echo "KEY_VAULTS_SECRET=$(openssl rand -base64 32)" >> .env.docker.prod
 
 # 2. Build

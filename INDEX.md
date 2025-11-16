@@ -37,12 +37,6 @@ Status completo e checklist:
 - 🔒 Segurança
 - 🎯 Próximos passos
 
-### 5. Log de Alterações
-**[CHANGES.md](./CHANGES.md)**  
-Registro detalhado:
-- 📝 Todas as alterações
-- 📊 Estatísticas
-- 🔒 Segurança implementada
 
 ---
 
@@ -57,8 +51,29 @@ Workflows configurados:
 - ✅ Deploy no servidor via SSH
 
 ### 7. Configuração de CI/CD
+
+**[GITHUB_SECRETS_SETUP.md](./GITHUB_SECRETS_SETUP.md)** ⭐ **COMECE AQUI!**  
+Guia simplificado para configurar secrets:
+- 🔐 Reutiliza secrets existentes do GCP
+- 🔑 Apenas 2 secrets novos: CUSTOM_API_URL e KEY_VAULTS_SECRET
+- ⚡ Passo a passo rápido
+
+**[SSH_KEYS_GUIDE.md](./SSH_KEYS_GUIDE.md)** 🔑 **Como obter SSH keys**  
+Guia detalhado sobre GCP_USERNAME e GCP_SSH_KEY:
+- ❓ O que é cada secret
+- 📍 Onde encontrar suas chaves SSH
+- 🧪 Como testar a conexão
+- 🆘 Solução de problemas
+
+**[SSH_KEY_SETUP_SERVER.md](./SSH_KEY_SETUP_SERVER.md)** 🔧 **Adicionar chave no servidor**  
+Como configurar SSH no servidor:
+- 🧪 Testar se já está configurado
+- 🚀 Método automático com ssh-copy-id
+- 📝 Método manual passo a passo
+- 🔍 Verificação e troubleshooting
+
 **[.github/workflows/SETUP.md](./.github/workflows/SETUP.md)**  
-Guia passo a passo:
+Guia passo a passo completo:
 - 🔐 Configurar secrets
 - 🔑 Configurar SSH
 - ⚙️ Habilitar permissões
@@ -114,7 +129,6 @@ lobechat-custom/
 ├── 📄 DEPLOY.md                  ← Guia completo
 ├── 📄 PRODUCTION.md              ← Ref. rápida
 ├── 📄 PRODUCTION_READY.md        ← Status
-├── 📄 CHANGES.md                 ← Log de alterações
 │
 ├── 🐳 Docker
 │   ├── docker-compose.prod.yml   ← Config produção

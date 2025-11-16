@@ -30,7 +30,7 @@ jobs:
 
     env:
       REGISTRY: ghcr.io
-      IMAGE_NAME: ${{ github.repository }}
+      IMAGE_NAME: ${{ github.repository | tr '[:upper:]' '[:lower:]' }}
 
     outputs:
       image_tag: ${{ steps.set-image-tag.outputs.image_tag }}

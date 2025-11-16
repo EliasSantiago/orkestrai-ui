@@ -66,6 +66,7 @@ jobs:
             NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
             NEXT_PUBLIC_CUSTOM_API_BASE_URL=${{ secrets.CUSTOM_API_URL }}
             KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
+            DATABASE_URL=postgresql://fake:fake@localhost:5432/fake
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

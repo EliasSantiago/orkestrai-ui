@@ -75,7 +75,7 @@ export const createCommonSlice: StateCreator<
       !!isLogin ? GET_USER_STATE_KEY : null,
       () => userService.getUserState(),
       {
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
           options?.onSuccess?.(data);
 
           if (data) {
@@ -90,7 +90,32 @@ export const createCommonSlice: StateCreator<
 
             // merge preference
             const isEmpty = Object.keys(data.preference || {}).length === 0;
-            const preference = isEmpty ? DEFAULT_PREFERENCE : data.preference;
+            let preference = isEmpty ? DEFAULT_PREFERENCE : data.preference;
+
+            // Load preferences from backend (if custom auth is enabled)
+            try {
+              const backendPrefs = await userService.loadPreferencesFromBackend();
+              if (backendPrefs && Object.keys(backendPrefs).length > 0) {
+                console.log('[UserStore] Loaded preferences from backend:', backendPrefs);
+                preference = merge(preference, backendPrefs);
+              }
+            } catch (error) {
+              console.error('[UserStore] Failed to load backend preferences:', error);
+              // Continue with local preferences
+            }
+
+            // Load settings from backend (if custom auth is enabled)
+            let settings = data.settings || {};
+            try {
+              const backendSettings = await userService.loadSettingsFromBackend();
+              if (backendSettings && Object.keys(backendSettings).length > 0) {
+                console.log('[UserStore] Loaded settings from backend:', backendSettings);
+                settings = merge(settings, backendSettings);
+              }
+            } catch (error) {
+              console.error('[UserStore] Failed to load backend settings:', error);
+              // Continue with local settings
+            }
 
             // if there is avatar or userId (from client DB), update it into user
             const user =
@@ -115,7 +140,7 @@ export const createCommonSlice: StateCreator<
                 isUserHasConversation: data.hasConversation,
                 isUserStateInit: true,
                 preference,
-                settings: data.settings || {},
+                settings,
                 subscriptionPlan: data.subscriptionPlan,
                 user,
               },

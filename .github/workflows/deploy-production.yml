@@ -94,10 +94,11 @@ jobs:
 
             # Create .env file with secrets
             echo "Creating .env file with production secrets..."
-            cat > .env <<EOF
-CUSTOM_API_URL=${{ secrets.CUSTOM_API_URL }}
-KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
-EOF
+            cat > .env << 'EOF'
+            CUSTOM_API_URL=${CUSTOM_API_URL}
+            KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
+            EOF
+
 
             # Login no registry
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin

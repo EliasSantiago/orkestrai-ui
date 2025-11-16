@@ -122,10 +122,10 @@ jobs:
             
             # Create .env file with secrets
             echo "Creating .env file with production secrets..."
-            cat > .env << 'EOF_ENV'
-            CUSTOM_API_URL=${{ secrets.CUSTOM_API_URL }}
-            KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
-            EOF_ENV
+            cat > .env <<EOF
+CUSTOM_API_URL=${{ secrets.CUSTOM_API_URL }}
+KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
+EOF
             
             # Pull image built by CI (uses tag passed from workflow)
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin

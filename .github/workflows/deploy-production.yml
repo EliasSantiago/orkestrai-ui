@@ -1,0 +1,148 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+# Evitar múltiplos deploys simultâneos
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  # Job 1: Build e Push da Imagem Docker
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    # Só roda se for push na main OU se PR foi merged
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Opção 1: Docker Hub (descomente se usar Docker Hub)
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Opção 2: GitHub Container Registry (recomendado - grátis!)
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.local
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
+            NEXT_PUBLIC_CUSTOM_API_BASE_URL=${{ secrets.CUSTOM_API_URL }}
+            KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image digest
+        run: echo ${{ steps.meta.outputs.tags }}
+
+  # Job 2: Deploy no Servidor (Opcional)
+  deploy-to-server:
+    name: Deploy to Server
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            cd ~/chat-ui
+            
+            # Pull latest code
+            git pull origin main
+            
+            # Pull latest image
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ghcr.io/${{ github.repository }}:latest
+            
+            # Stop, remove old container
+            docker-compose -f docker-compose.prod.yml down
+            
+            # Start with new image
+            docker-compose -f docker-compose.prod.yml up -d
+            
+            # Cleanup old images
+            docker image prune -af
+            
+            echo "✅ Deploy concluído!"
+
+      - name: Health check
+        run: |
+          echo "Aguardando 30s para aplicação iniciar..."
+          sleep 30
+          
+          # Verificar se aplicação está respondendo
+          HEALTH_URL="http://${{ secrets.SERVER_HOST }}:3210"
+          if curl -f -s "$HEALTH_URL" > /dev/null; then
+            echo "✅ Aplicação está respondendo!"
+          else
+            echo "❌ Aplicação não está respondendo!"
+            exit 1
+          fi
+
+  # Job 3: Notificação (Opcional)
+  notify:
+    name: Send Notification
+    needs: [build-and-push, deploy-to-server]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Send success notification
+        if: needs.deploy-to-server.result == 'success'
+        run: |
+          echo "🎉 Deploy concluído com sucesso!"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Autor: ${{ github.actor }}"
+      
+      - name: Send failure notification
+        if: needs.deploy-to-server.result == 'failure'
+        run: |
+          echo "❌ Deploy falhou!"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          # Aqui você pode adicionar integração com Slack, Discord, etc.
+

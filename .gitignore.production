@@ -1,0 +1,45 @@
+# Production-specific gitignore
+
+# Environment files (NÃO commitar!)
+.env.docker.prod
+.env.production
+.env.local
+
+# Documentação arquivada
+_docs_archive/
+
+# Build artifacts
+.next/
+node_modules/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Docker
+.dockerignore.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

@@ -1,0 +1,80 @@
+import { StateCreator } from 'zustand/vanilla';
+
+import { enableAuth, enableClerk, enableCustomAuth, enableNextAuth } from '@/const/auth';
+import { customAuthService } from '@/services/customAuth';
+
+import type { UserStore } from '../../store';
+
+export interface UserAuthAction {
+  enableAuth: () => boolean;
+  /**
+   * universal logout method
+   */
+  logout: () => Promise<void>;
+  /**
+   * universal login method
+   */
+  openLogin: () => Promise<void>;
+}
+
+export const createAuthSlice: StateCreator<
+  UserStore,
+  [['zustand/devtools', never]],
+  [],
+  UserAuthAction
+> = (set, get) => ({
+  enableAuth: () => {
+    return enableAuth;
+  },
+  logout: async () => {
+    if (enableClerk) {
+      get().clerkSignOut?.({ redirectUrl: location.toString() });
+
+      return;
+    }
+
+    if (enableNextAuth) {
+      const { signOut } = await import('next-auth/react');
+      signOut();
+      return;
+    }
+
+    if (enableCustomAuth) {
+      customAuthService.logout();
+      // Reload page to clear any cached state
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+  },
+  openLogin: async () => {
+    if (enableClerk) {
+      const redirectUrl = location.toString();
+      get().clerkSignIn?.({
+        fallbackRedirectUrl: redirectUrl,
+        signUpForceRedirectUrl: redirectUrl,
+        signUpUrl: '/signup',
+      });
+
+      return;
+    }
+
+    if (enableNextAuth) {
+      const { signIn } = await import('next-auth/react');
+      // Check if only one provider is available
+      const providers = get()?.oAuthSSOProviders;
+      if (providers && providers.length === 1) {
+        signIn(providers[0]);
+        return;
+      }
+      signIn();
+      return;
+    }
+
+    if (enableCustomAuth) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+  },
+});

@@ -1,0 +1,94 @@
+FROM node:20-alpine AS base
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+FROM base AS deps
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json ./
+COPY pnpm-workspace.yaml ./
+COPY packages ./packages
+
+# Install dependencies
+# Sem lock file, pnpm gerará um durante install
+RUN pnpm install --no-frozen-lockfile --prefer-offline
+
+FROM base AS builder
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+
+# Copy all source code (including your customizations)
+COPY . .
+
+# Garantir que locales e apps estão presentes (mesmo com COPY . .)
+COPY locales ./locales
+RUN mkdir -p apps/desktop
+COPY apps/desktop/package.json ./apps/desktop/package.json
+
+# CRITICAL FIX: Force remove ANY turbopack config (cache might have old version!)
+RUN sed -i '/turbopack.*:/d' next.config.ts && \
+    sed -i '/turbopack.*{/d' next.config.ts && \
+    echo "✅ Turbopack config forcefully removed from next.config.ts"
+
+# Build arguments
+ARG NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
+ARG NEXT_PUBLIC_CUSTOM_API_BASE_URL
+ARG KEY_VAULTS_SECRET
+
+# Set environment variables for build
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=${NEXT_PUBLIC_ENABLE_CUSTOM_AUTH}
+ENV NEXT_PUBLIC_CUSTOM_API_BASE_URL=${NEXT_PUBLIC_CUSTOM_API_BASE_URL}
+ENV KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
+
+# Desabilitar qualquer download de modelos locais
+ENV DISABLE_MODEL_DOWNLOAD=1
+ENV OLLAMA_DISABLED=1
+ENV ENABLE_OLLAMA_PROXY=0
+# Force Webpack (não Turbopack) em produção
+ENV TURBO_FORCE=0
+
+# Build the application (sem type-check para evitar erros em features não usadas)
+# Next.js 16: Must explicitly specify --webpack flag (Turbopack is default!)
+RUN pnpm run prebuild:docker && NODE_OPTIONS=--max-old-space-size=6144 DOCKER=true pnpm exec next build --webpack && pnpm run build-sitemap
+
+FROM base AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3210
+
+# Desabilitar modelos locais em runtime
+ENV DISABLE_MODEL_DOWNLOAD=1
+ENV OLLAMA_DISABLED=1
+ENV ENABLE_OLLAMA_PROXY=0
+
+# Create user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy public assets
+COPY --from=builder /app/public ./public
+
+# Copy built application
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3210
+
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
+

@@ -1,0 +1,47 @@
+# ============================================
+# TEMPLATE DE CONFIGURAÇÃO PARA PRODUÇÃO
+# ============================================
+# COPIE este conteúdo para .env.production e ajuste os valores
+# NÃO commite .env.production no Git!
+# ============================================
+
+# ============================================
+# AUTENTICAÇÃO CUSTOMIZADA (OBRIGATÓRIO!)
+# ============================================
+NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
+NEXT_PUBLIC_CUSTOM_API_BASE_URL=https://seu-backend-producao.com/api
+
+# ============================================
+# CONFIGURAÇÃO DA APLICAÇÃO
+# ============================================
+NODE_ENV=production
+APP_URL=https://seu-frontend-producao.com
+
+# ============================================
+# DESABILITAR MODELOS LOCAIS
+# ============================================
+DISABLE_MODEL_DOWNLOAD=1
+OLLAMA_DISABLED=1
+ENABLE_OLLAMA_PROXY=0
+ENABLE_OLLAMA=0
+
+# ============================================
+# TELEMETRIA
+# ============================================
+NEXT_TELEMETRY_DISABLED=1
+
+# ============================================
+# OPCIONAL: DATABASE (se quiser usar features nativas do LobeChat)
+# ============================================
+# DATABASE_URL=postgresql://user:password@host:5432/lobechat?schema=lobechat
+# KEY_VAULTS_SECRET=gere-com-openssl-rand-base64-32
+
+# ============================================
+# OPCIONAL: S3 (para upload de arquivos)
+# ============================================
+# S3_ACCESS_KEY_ID=sua-access-key
+# S3_SECRET_ACCESS_KEY=sua-secret-key
+# S3_BUCKET=seu-bucket
+# S3_ENDPOINT=https://s3.amazonaws.com
+# S3_REGION=us-east-1
+

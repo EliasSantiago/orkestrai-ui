@@ -1,0 +1,54 @@
+services:
+  lobechat:
+    # Build from local source (com suas customizações)
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      args:
+        - NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
+        - NEXT_PUBLIC_CUSTOM_API_BASE_URL=${CUSTOM_API_URL}
+        - KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
+    
+    image: lobechat-custom:production
+    container_name: lobechat-production
+    
+    ports:
+      - "3210:3210"
+    
+    environment:
+      # IMPORTANTE: Configure estas variáveis no servidor!
+      - NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
+      - NEXT_PUBLIC_CUSTOM_API_BASE_URL=${CUSTOM_API_URL}
+      
+      # Telemetria
+      - NEXT_TELEMETRY_DISABLED=1
+      
+      # Desabilitar modelos locais
+      - DISABLE_MODEL_DOWNLOAD=1
+      - OLLAMA_DISABLED=1
+      - ENABLE_OLLAMA_PROXY=0
+      - ENABLE_OLLAMA=0
+      
+      # Node.js
+      - NODE_ENV=production
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3210"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    name: lobechat-production
+

@@ -1,0 +1,47 @@
+services:
+  lobechat:
+    # Build local a partir dos arquivos do diretório
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      args:
+        - NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
+        - NEXT_PUBLIC_CUSTOM_API_BASE_URL=http://host.docker.internal:8001/api
+    image: lobechat-custom:local
+    container_name: lobechat-local
+    ports:
+      - "3210:3210"
+    environment:
+      # Autenticação Customizada - USA APENAS SUA API
+      - NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
+      - NEXT_PUBLIC_CUSTOM_API_BASE_URL=http://host.docker.internal:8001/api
+      
+      # Desabilitar telemetria
+      - NEXT_TELEMETRY_DISABLED=1
+      
+      # IMPORTANTE: Desabilitar TODOS os modelos locais
+      - DISABLE_MODEL_DOWNLOAD=1
+      - OLLAMA_DISABLED=1
+      - ENABLE_OLLAMA_PROXY=0
+      - ENABLE_OLLAMA=0
+      
+      # Opcional - Database local (se quiser testar recursos nativos)
+      # - DATABASE_URL=postgresql://user:password@host.docker.internal:5432/lobechat
+      # - KEY_VAULTS_SECRET=sua-chave-base64
+      
+    extra_hosts:
+      # Permite o container acessar localhost do host
+      - "host.docker.internal:host-gateway"
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3210"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: lobechat-network

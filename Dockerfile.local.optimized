@@ -1,0 +1,47 @@
+# ===============================================
+# Dockerfile Otimizado - Usa imagem oficial como base
+# ===============================================
+# Estratégia: Partir da imagem oficial do LobeChat e apenas
+# sobrescrever os arquivos customizados
+# Resultado: Build 10x mais rápido (~2-3 min vs 15 min)
+# ===============================================
+
+FROM lobehub/lobe-chat:latest AS official
+
+# Stage: Customization - Adiciona apenas as customizações
+FROM official AS custom
+
+WORKDIR /app
+
+# Copiar apenas arquivos customizados (não reconstruir tudo!)
+COPY --chown=nextjs:nodejs src/services/customAuth ./src/services/customAuth
+COPY --chown=nextjs:nodejs src/services/customApi ./src/services/customApi
+COPY --chown=nextjs:nodejs src/services/customChat ./src/services/customChat
+COPY --chown=nextjs:nodejs src/layout/AuthProvider/CustomAuth ./src/layout/AuthProvider/CustomAuth
+COPY --chown=nextjs:nodejs src/store/session/slices/backendSync ./src/store/session/slices/backendSync
+
+# Copiar modificações em arquivos existentes
+COPY --chown=nextjs:nodejs src/app/\[variants\]/\(auth\)/login ./src/app/\[variants\]/\(auth\)/login
+COPY --chown=nextjs:nodejs src/app/\[variants\]/\(auth\)/signup ./src/app/\[variants\]/\(auth\)/signup
+COPY --chown=nextjs:nodejs src/layout/AuthProvider/index.tsx ./src/layout/AuthProvider/index.tsx
+COPY --chown=nextjs:nodejs src/layout/GlobalProvider/StoreInitialization.tsx ./src/layout/GlobalProvider/StoreInitialization.tsx
+COPY --chown=nextjs:nodejs src/store/session/store.ts ./src/store/session/store.ts
+COPY --chown=nextjs:nodejs src/store/session/slices/session/action.ts ./src/store/session/slices/session/action.ts
+COPY --chown=nextjs:nodejs src/store/chat/slices/aiChat/actions/conversationLifecycle.ts ./src/store/chat/slices/aiChat/actions/conversationLifecycle.ts
+COPY --chown=nextjs:nodejs src/store/user/slices/auth/action.ts ./src/store/user/slices/auth/action.ts
+COPY --chown=nextjs:nodejs src/envs/app.ts ./src/envs/app.ts
+COPY --chown=nextjs:nodejs packages/const/src/auth.ts ./packages/const/src/auth.ts
+
+# Variáveis de ambiente
+ENV NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
+ENV DISABLE_MODEL_DOWNLOAD=1
+ENV OLLAMA_DISABLED=1
+ENV ENABLE_OLLAMA_PROXY=0
+ENV ENABLE_OLLAMA=0
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Usar o mesmo CMD da imagem oficial
+# CMD já está definido na imagem base
+
+EXPOSE 3210
+

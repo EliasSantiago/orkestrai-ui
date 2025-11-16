@@ -9,76 +9,13 @@ on:
     branches:
       - main
 
-# Evitar múltiplos deploys simultâneos
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
 jobs:
-  # Job 1: Build e Push da Imagem Docker
-  build-and-push:
-    name: Build and Push Docker Image
-    runs-on: ubuntu-latest
-
-    # Só roda se for push na main OU se PR foi merged
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-
-    # Permissões necessárias para push no GitHub Container Registry
-    permissions:
-      contents: read
-      packages: write
-
-    env:
-      REGISTRY: ghcr.io
-      IMAGE_NAME: ${{ github.repository }}
-
-    outputs:
-      image_tag: ${{ steps.set-image-tag.outputs.image_tag }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Convert image name to lowercase
-        id: image-name
-        run: echo "IMAGE_NAME_LOWER=$(echo ${{ env.IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set image tag output
-        id: set-image-tag
-        run: |
-          echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.local
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME_LOWER }}:${{ steps.set-image-tag.outputs.image_tag }}
-            ${{ env.REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME_LOWER }}:latest
-          build-args: |
-            NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
-            NEXT_PUBLIC_CUSTOM_API_BASE_URL=${{ secrets.CUSTOM_API_URL }}
-            KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
-            DATABASE_URL=postgresql://fake:fake@localhost:5432/fake
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # Job 2: Deploy no Servidor
   deploy-to-server:
     name: Deploy to Server
-    needs: build-and-push
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
 
@@ -98,44 +35,42 @@ jobs:
 
             # Create .env file with secrets
             echo "Creating .env file with production secrets..."
-            cat > .env << 'EOF'
-            CUSTOM_API_URL=${CUSTOM_API_URL}
-            KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
-            EOF
+            cat > .env <<EOF
+CUSTOM_API_URL=${{ secrets.CUSTOM_API_URL }}
+KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
+EOF
 
-
-            # Login no registry
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-            # Pull image buildada pelo CI
-            docker pull ghcr.io/${{ github.repository }}:${{ needs.build-and-push.outputs.image_tag }}
-
-            # Substituir container antigo
+            # Build and start with docker-compose (builds image locally)
+            echo "Building and starting application..."
             docker-compose -f docker-compose.prod.yml down
-            docker-compose -f docker-compose.prod.yml up -d
+            docker-compose -f docker-compose.prod.yml up -d --build
 
-            # Limpar imagens antigas
+            # Cleanup old images
             docker image prune -af
 
             echo "✅ Deploy concluído!"
 
       - name: Health check
         run: |
-          echo "Aguardando 30s para aplicação iniciar..."
-          sleep 30
+          echo "Aguardando 60s para aplicação iniciar..."
+          sleep 60
 
           HEALTH_URL="http://${{ secrets.GCP_HOST }}:3210"
-          if curl -f -s "$HEALTH_URL" > /dev/null; then
-            echo "✅ Aplicação está respondendo!"
-          else
-            echo "❌ Aplicação não está respondendo!"
-            exit 1
-          fi
+          for i in {1..5}; do
+            if curl -f -s "$HEALTH_URL" > /dev/null; then
+              echo "✅ Aplicação está respondendo!"
+              exit 0
+            fi
+            echo "Tentativa $i/5: aplicação ainda não está pronta..."
+            sleep 10
+          done
 
-  # Job 3: Notificação
+          echo "❌ Aplicação não está respondendo após 5 tentativas!"
+          exit 1
+
   notify:
     name: Send Notification
-    needs: [build-and-push, deploy-to-server]
+    needs: deploy-to-server
     runs-on: ubuntu-latest
     if: always()
 
@@ -155,4 +90,3 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "Autor: ${{ github.actor }}"
-          # Aqui você pode adicionar integração com Slack, Discord, etc.

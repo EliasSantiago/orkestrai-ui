@@ -19,16 +19,22 @@ jobs:
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
+
     # Só roda se for push na main OU se PR foi merged
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-    
+
     # Permissões necessárias para push no GitHub Container Registry
     permissions:
       contents: read
       packages: write
-    
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+
     outputs:
       image_tag: ${{ steps.set-image-tag.outputs.image_tag }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,14 +42,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Opção 1: Docker Hub (descomente se usar Docker Hub)
-      # - name: Login to Docker Hub
-      #   uses: docker/login-action@v3
-      #   with:
-      #     username: ${{ secrets.DOCKER_USERNAME }}
-      #     password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # Opção 2: GitHub Container Registry (recomendado - grátis!)
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -51,24 +49,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Set image tag output
+        id: set-image-tag
+        run: |
+          echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.local
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.set-image-tag.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
             NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
             NEXT_PUBLIC_CUSTOM_API_BASE_URL=${{ secrets.CUSTOM_API_URL }}
@@ -77,35 +71,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Image digest
-        run: |
-          echo "Image tags from metadata-action:"
-          printf '%s\n' "${{ steps.meta.outputs.tags }}" | sed 's/^/ - /'
-
-      - name: Set image tag output
-        id: set-image-tag
-        run: |
-          # Choose first tag from meta outputs (prefer explicit tags order)
-          tags="${{ steps.meta.outputs.tags }}"
-          # normalize separators (commas -> newlines), pick first non-empty line
-          image_full=$(printf "%s" "$tags" | tr ',' '\n' | sed -n '/\S/p' | sed -n '1p' | tr -d ' '\n')
-          if [ -z "$image_full" ]; then
-            echo "No image tag found from metadata-action" >&2
-            exit 1
-          fi
-          # extract tag part after last ':' (e.g. ghcr.io/owner/repo:tag -> tag)
-          image_tag="${image_full##*:}"
-          echo "Selected image_full: $image_full"
-          echo "Selected image_tag: $image_tag"
-          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
-
-  # Job 2: Deploy no Servidor (Opcional)
+  # Job 2: Deploy no Servidor
   deploy-to-server:
     name: Deploy to Server
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-    
+
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
@@ -113,41 +85,40 @@ jobs:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
-          port: ${{ secrets.GCP_SSH_PORT || 22 }}
+          port: ${{ secrets.GCP_SSH_PORT }}
           script: |
             cd ~/chat-ui
-            
+
             # Pull latest code
             git pull origin main
-            
+
             # Create .env file with secrets
             echo "Creating .env file with production secrets..."
             cat > .env <<EOF
 CUSTOM_API_URL=${{ secrets.CUSTOM_API_URL }}
 KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
 EOF
-            
-            # Pull image built by CI (uses tag passed from workflow)
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Login no registry
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            # Pull image buildada pelo CI
             docker pull ghcr.io/${{ github.repository }}:${{ needs.build-and-push.outputs.image_tag }}
-            
-            # Stop, remove old container
+
+            # Substituir container antigo
             docker-compose -f docker-compose.prod.yml down
-            
-            # Start with new image
             docker-compose -f docker-compose.prod.yml up -d
-            
-            # Cleanup old images
+
+            # Limpar imagens antigas
             docker image prune -af
-            
+
             echo "✅ Deploy concluído!"
 
       - name: Health check
         run: |
           echo "Aguardando 30s para aplicação iniciar..."
           sleep 30
-          
-          # Verificar se aplicação está respondendo
+
           HEALTH_URL="http://${{ secrets.GCP_HOST }}:3210"
           if curl -f -s "$HEALTH_URL" > /dev/null; then
             echo "✅ Aplicação está respondendo!"
@@ -156,13 +127,13 @@ EOF
             exit 1
           fi
 
-  # Job 3: Notificação (Opcional)
+  # Job 3: Notificação
   notify:
     name: Send Notification
     needs: [build-and-push, deploy-to-server]
     runs-on: ubuntu-latest
     if: always()
-    
+
     steps:
       - name: Send success notification
         if: needs.deploy-to-server.result == 'success'
@@ -171,12 +142,12 @@ EOF
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "Autor: ${{ github.actor }}"
-      
+
       - name: Send failure notification
         if: needs.deploy-to-server.result == 'failure'
         run: |
           echo "❌ Deploy falhou!"
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
+          echo "Autor: ${{ github.actor }}"
           # Aqui você pode adicionar integração com Slack, Discord, etc.
-

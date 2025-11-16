@@ -1,4 +1,4 @@
-# 🔧 Build Fix: CustomAuthService
+# 🔧 Build Fix: Custom Services (Auth, Api, Session, Message)
 
 ## 📋 Problema Identificado
 
@@ -13,16 +13,25 @@ at new CustomAuthService (.next/server/chunks/22907.js:84049:19)
 ### Causa Raiz:
 
 1. **Build Time vs Runtime**: O Next.js faz **pre-render** (SSG/SSR) de páginas durante o build
-2. **Singleton Instantiation**: O `CustomAuthService` é criado como singleton durante a importação do módulo:
+2. **Singleton Instantiation**: Os serviços customizados são criados como singleton durante a importação do módulo:
    ```typescript
    export const customAuthService = new CustomAuthService();
+   export const customApiService = new CustomApiService();
+   export const customSessionService = new CustomSessionService();
+   export const customMessageService = new CustomMessageService();
    ```
-3. **Constructor Validation**: O constructor do `CustomAuthService` verificava se `NEXT_PUBLIC_CUSTOM_API_BASE_URL` estava definido e **jogava erro imediatamente** se não estivesse
+3. **Constructor Validation**: O constructor desses serviços verificava se `NEXT_PUBLIC_CUSTOM_API_BASE_URL` estava definido e **jogava erro imediatamente** se não estivesse
 4. **Build Time Context**: Durante o build (server-side), `window` não existe e a variável pode não estar disponível ainda
 
 ---
 
 ## ✅ Solução Implementada
+
+**Arquivos Corrigidos:**
+- `src/services/customAuth/index.ts`
+- `src/services/customApi/index.ts`
+- `src/services/customSession/index.ts`
+- `src/services/customMessage/index.ts`
 
 ### 1. **Placeholder durante Build Time**
 

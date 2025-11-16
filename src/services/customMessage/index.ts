@@ -28,12 +28,20 @@ export class CustomMessageService {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
+    // Check both client-side and server-side env vars
     const envUrl =
       typeof window !== 'undefined'
         ? process.env.NEXT_PUBLIC_CUSTOM_API_BASE_URL
-        : undefined;
+        : process.env.NEXT_PUBLIC_CUSTOM_API_BASE_URL;
 
+    // During build time (SSG/SSR), allow empty baseUrl
     if (!baseUrl && !envUrl) {
+      if (typeof window === 'undefined') {
+        this.baseUrl = 'http://placeholder-for-build.local';
+        console.warn('⚠️  CustomMessageService: NEXT_PUBLIC_CUSTOM_API_BASE_URL not set during build. Using placeholder.');
+        return;
+      }
+      
       throw new Error(
         'NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured! Please set it in your .env file.',
       );
@@ -43,12 +51,24 @@ export class CustomMessageService {
   }
 
   /**
+   * Validate that baseUrl is properly configured (not a placeholder)
+   */
+  private validateBaseUrl(): void {
+    if (this.baseUrl === 'http://placeholder-for-build.local') {
+      throw new Error(
+        'NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured! Please set it in your .env file.'
+      );
+    }
+  }
+
+  /**
    * Make authenticated API request
    */
   private async request<T>(
     endpoint: string,
     options: globalThis.RequestInit = {},
   ): Promise<T> {
+    this.validateBaseUrl();
     const token = customAuthService.getAccessToken();
     if (!token) {
       throw new Error('Not authenticated');

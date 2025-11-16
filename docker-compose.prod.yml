@@ -1,24 +1,17 @@
 services:
   lobechat:
-    # Build from local source (com suas customizações)
-    build:
-      context: .
-      dockerfile: Dockerfile.local
-      args:
-        - NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
-        - NEXT_PUBLIC_CUSTOM_API_BASE_URL=${CUSTOM_API_URL}
-        - KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
-    
-    image: lobechat-custom:production
+    # Use image from GitHub Container Registry (built by CI/CD)
+    image: ghcr.io/eliassantiago/orkestrai-ui:latest
     container_name: lobechat-production
     
     ports:
       - "3210:3210"
     
     environment:
-      # IMPORTANTE: Configure estas variáveis no servidor!
+      # IMPORTANTE: Configure estas variáveis no servidor via .env file!
       - NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
-      - NEXT_PUBLIC_CUSTOM_API_BASE_URL=${CUSTOM_API_URL}
+      - NEXT_PUBLIC_CUSTOM_API_BASE_URL=${CUSTOM_API_URL:-http://34.42.168.19:8001}
+      - KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
       
       # Telemetria
       - NEXT_TELEMETRY_DISABLED=1

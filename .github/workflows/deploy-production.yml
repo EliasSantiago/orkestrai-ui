@@ -94,6 +94,13 @@ jobs:
             # Pull latest code
             git pull origin main
             
+            # Create .env file with secrets
+            echo "Creating .env file with production secrets..."
+            cat > .env << 'EOF_ENV'
+            CUSTOM_API_URL=${{ secrets.CUSTOM_API_URL }}
+            KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
+            EOF_ENV
+            
             # Pull latest image
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/${{ github.repository }}:latest

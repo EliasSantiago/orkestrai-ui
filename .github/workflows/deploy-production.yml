@@ -40,10 +40,6 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" "${GCP_USERNAME}@${GCP_HOST}" <<SSH_REMOTE
           set -euo pipefail
 
-          # NOTE: the following values were expanded by the runner before sending
-          CUSTOM_API_URL="${CUSTOM_API_URL}"
-          KEY_VAULTS_SECRET="${KEY_VAULTS_SECRET}"
-
           cd ~
 
           # Ensure repository is present; clone if missing
@@ -61,11 +57,11 @@ jobs:
           git reset --hard origin/main
           git clean -fdx
 
-          # Create .env file with secrets (no indentation)
+          # Create .env file with secrets (explicit values)
           echo "Creating .env file with production secrets..."
-          cat > .env <<-EOF
-          ${CUSTOM_API_URL:+CUSTOM_API_URL=${CUSTOM_API_URL}}
-          ${KEY_VAULTS_SECRET:+KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}}
+          cat > .env <<EOF
+          CUSTOM_API_URL=${CUSTOM_API_URL}
+          KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
           EOF
 
           # Build and start with docker compose (builds image locally from repo)

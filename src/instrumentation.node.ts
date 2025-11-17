@@ -1,5 +1,5 @@
 import { register } from '@lobechat/observability-otel/node';
 
-import { version } from '../package.json';
+import pkg from '../package.json';
 
-register({ version });
+register({ version: pkg.version });

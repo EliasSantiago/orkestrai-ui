@@ -20,56 +20,66 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.GCP_HOST }}
-          username: ${{ secrets.GCP_USERNAME }}
-          key: ${{ secrets.GCP_SSH_KEY }}
-          port: ${{ secrets.GCP_SSH_PORT }}
-          script: |
-            set -euo pipefail
+      - name: Deploy via SSH (inline)
+        env:
+          GCP_HOST: ${{ secrets.GCP_HOST }}
+          GCP_USERNAME: ${{ secrets.GCP_USERNAME }}
+          GCP_SSH_PORT: ${{ secrets.GCP_SSH_PORT }}
+          CUSTOM_API_URL: ${{ secrets.CUSTOM_API_URL }}
+          KEY_VAULTS_SECRET: ${{ secrets.KEY_VAULTS_SECRET }}
+        run: |
+          set -euo pipefail
 
-            cd ~
+          # write SSH key to a temp file
+          echo "Writing SSH key..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GCP_SSH_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
 
-            # Ensure repository is present; clone if missing
-            if [ ! -d "chat-ui/.git" ]; then
-              echo "Cloning repository into ~/chat-ui..."
-              rm -rf ~/chat-ui || true
-              git clone "https://github.com/${{ github.repository }}" ~/chat-ui
-            fi
+          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" "${GCP_USERNAME}@${GCP_HOST}" <<'REMOTE'
+          set -euo pipefail
 
-            cd ~/chat-ui
+          cd ~
 
-            # Fetch latest code and force-reset to origin/main to ensure clean state
-            echo "Fetching latest changes from origin/main..."
-            git fetch --all --prune
-            git reset --hard origin/main
-            git clean -fdx
+          # Ensure repository is present; clone if missing
+          if [ ! -d "chat-ui/.git" ]; then
+            echo "Cloning repository into ~/chat-ui..."
+            rm -rf ~/chat-ui || true
+            git clone "https://github.com/${{ github.repository }}" ~/chat-ui
+          fi
 
-            # Create .env file with secrets (no leading indentation)
-            echo "Creating .env file with production secrets..."
-            cat > .env <<'ENVFILE'
-            CUSTOM_API_URL=${{ secrets.CUSTOM_API_URL }}
-            KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
-            ENVFILE
+          cd ~/chat-ui
 
-            # Build and start with docker compose (builds image locally from repo)
-            echo "Building and starting application (building from source)..."
-            # Enable BuildKit and use the modern docker compose plugin for better caching
-            export DOCKER_BUILDKIT=1
-            export COMPOSE_DOCKER_CLI_BUILD=1
+          # Fetch latest code and force-reset to origin/main to ensure clean state
+          echo "Fetching latest changes from origin/main..."
+          git fetch --all --prune
+          git reset --hard origin/main
+          git clean -fdx
 
-            # Use the plugin command explicitly
-            docker compose -f docker-compose.prod.yml down || true
-            # First build to encourage reuse of cache, then bring up
-            docker compose -f docker-compose.prod.yml build --progress=plain
-            docker compose -f docker-compose.prod.yml up -d
+          # Create .env file with secrets (no leading indentation)
+          echo "Creating .env file with production secrets..."
+          cat > .env <<'ENVFILE'
+          CUSTOM_API_URL=${CUSTOM_API_URL}
+          KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
+          ENVFILE
 
-            # Cleanup old images (best-effort)
-            docker image prune -af || true
+          # Build and start with docker compose (builds image locally from repo)
+          echo "Building and starting application (building from source)..."
+          export DOCKER_BUILDKIT=1
+          export COMPOSE_DOCKER_CLI_BUILD=1
 
-            echo "✅ Deploy concluído!"
+          docker compose -f docker-compose.prod.yml down || true
+          docker compose -f docker-compose.prod.yml build --progress=plain
+          docker compose -f docker-compose.prod.yml up -d
+
+          # Cleanup old images (best-effort)
+          docker image prune -af || true
+
+          echo "✅ Deploy concluído!"
+          REMOTE
+
+          # remove temp key
+          rm -f /tmp/deploy_key
 
       - name: Health check
         run: |

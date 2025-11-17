@@ -36,7 +36,10 @@ jobs:
           echo "${{ secrets.GCP_SSH_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
-          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" "${GCP_USERNAME}@${GCP_HOST}" <<'REMOTE'
+          # Pass secrets as SSH environment variables (using -o SendEnv)
+          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" \
+            -o SendEnv=CUSTOM_API_URL -o SendEnv=KEY_VAULTS_SECRET \
+            "${GCP_USERNAME}@${GCP_HOST}" bash -s <<'REMOTE'
           set -euo pipefail
 
           cd ~
@@ -56,12 +59,12 @@ jobs:
           git reset --hard origin/main
           git clean -fdx
 
-          # Create .env file with secrets (no leading indentation)
+          # Create .env file with secrets (no indentation)
           echo "Creating .env file with production secrets..."
-          cat > .env <<'ENVFILE'
-          CUSTOM_API_URL=${CUSTOM_API_URL}
-          KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
-          ENVFILE
+          cat > .env <<EOF
+CUSTOM_API_URL=${CUSTOM_API_URL}
+KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
+EOF
 
           # Build and start with docker compose (builds image locally from repo)
           echo "Building and starting application (building from source)..."
@@ -69,14 +72,14 @@ jobs:
           export COMPOSE_DOCKER_CLI_BUILD=1
 
           docker compose -f docker-compose.prod.yml down || true
-          docker compose -f docker-compose.prod.yml build --progress=plain
+          docker compose --progress=plain -f docker-compose.prod.yml build
           docker compose -f docker-compose.prod.yml up -d
 
           # Cleanup old images (best-effort)
           docker image prune -af || true
 
           echo "✅ Deploy concluído!"
-          REMOTE
+REMOTE
 
           # remove temp key
           rm -f /tmp/deploy_key

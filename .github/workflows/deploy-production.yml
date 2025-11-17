@@ -28,25 +28,46 @@ jobs:
           key: ${{ secrets.GCP_SSH_KEY }}
           port: ${{ secrets.GCP_SSH_PORT }}
           script: |
+            set -euo pipefail
+
+            cd ~
+
+            # Ensure repository is present; clone if missing
+            if [ ! -d "chat-ui/.git" ]; then
+              echo "Cloning repository into ~/chat-ui..."
+              rm -rf ~/chat-ui || true
+              git clone "https://github.com/${{ github.repository }}" ~/chat-ui
+            fi
+
             cd ~/chat-ui
 
-            # Pull latest code
-            git pull origin main
+            # Fetch latest code and force-reset to origin/main to ensure clean state
+            echo "Fetching latest changes from origin/main..."
+            git fetch --all --prune
+            git reset --hard origin/main
+            git clean -fdx
 
-            # Create .env file with secrets
+            # Create .env file with secrets (no leading indentation)
             echo "Creating .env file with production secrets..."
-            cat > .env <<EOF
+            cat > .env <<'ENVFILE'
             CUSTOM_API_URL=${{ secrets.CUSTOM_API_URL }}
             KEY_VAULTS_SECRET=${{ secrets.KEY_VAULTS_SECRET }}
-            EOF
+            ENVFILE
 
-            # Build and start with docker-compose (builds image locally)
-            echo "Building and starting application..."
-            docker-compose -f docker-compose.prod.yml down
-            docker-compose -f docker-compose.prod.yml up -d --build
+            # Build and start with docker compose (builds image locally from repo)
+            echo "Building and starting application (building from source)..."
+            # Prefer modern plugin command when available
+            if command -v docker-compose >/dev/null 2>&1; then
+              DC="docker-compose"
+            else
+              DC="docker compose"
+            fi
 
-            # Cleanup old images
-            docker image prune -af
+            $DC -f docker-compose.prod.yml down || true
+            $DC -f docker-compose.prod.yml up -d --build
+
+            # Cleanup old images (best-effort)
+            docker image prune -af || true
 
             echo "✅ Deploy concluído!"
 

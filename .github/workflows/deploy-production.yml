@@ -37,7 +37,7 @@ jobs:
           chmod 600 /tmp/deploy_key
 
           # Open SSH and send the remote script with secrets expanded locally
-          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" "${GCP_USERNAME}@${GCP_HOST}" <<'SSH_REMOTE'
+          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" "${GCP_USERNAME}@${GCP_HOST}" <<SSH_REMOTE
           set -euo pipefail
 
           # NOTE: the following values were expanded by the runner before sending

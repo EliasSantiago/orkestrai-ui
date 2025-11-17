@@ -36,14 +36,13 @@ jobs:
           echo "${{ secrets.GCP_SSH_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
-          # Pass secrets as SSH environment variables (using -o SendEnv)
-          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" \
-            "${GCP_USERNAME}@${GCP_HOST}" bash -s "${CUSTOM_API_URL}" "${KEY_VAULTS_SECRET}" <<'REMOTE'
+          # Open SSH and send the remote script with secrets expanded locally
+          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" "${GCP_USERNAME}@${GCP_HOST}" <<'SSH_REMOTE'
           set -euo pipefail
 
-          # Arguments passed from GitHub Actions
-          CUSTOM_API_URL="$1"
-          KEY_VAULTS_SECRET="$2"
+          # NOTE: the following values were expanded by the runner before sending
+          CUSTOM_API_URL="${CUSTOM_API_URL}"
+          KEY_VAULTS_SECRET="${KEY_VAULTS_SECRET}"
 
           cd ~
 
@@ -65,8 +64,8 @@ jobs:
           # Create .env file with secrets (no indentation)
           echo "Creating .env file with production secrets..."
           cat > .env <<-EOF
-          CUSTOM_API_URL=${CUSTOM_API_URL}
-          KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
+          ${CUSTOM_API_URL:+CUSTOM_API_URL=${CUSTOM_API_URL}}
+          ${KEY_VAULTS_SECRET:+KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}}
           EOF
 
           # Build and start with docker compose (builds image locally from repo)
@@ -82,7 +81,7 @@ jobs:
           docker image prune -af || true
 
           echo "✅ Deploy concluído!"
-          REMOTE
+          SSH_REMOTE
 
           # remove temp key
           rm -f /tmp/deploy_key

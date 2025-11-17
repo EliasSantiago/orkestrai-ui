@@ -19,7 +19,7 @@ import {
 import { TRPCError } from '@trpc/server';
 import { env } from 'node:process';
 
-import { name } from '../../../../package.json';
+import pkg from '../../../../package.json';
 import { trpc } from '../lambda/init';
 
 const tracer = trace.getTracer('trpc-server');
@@ -64,12 +64,12 @@ const finalizeSpanWithError = (span: Span, error: unknown) => {
 
 export const openTelemetry = trpc.middleware(async ({ path, type, next, getRawInput }) => {
   if (!env.ENABLE_TELEMETRY) {
-    diag.debug(name, 'telemetry disabled', env.ENABLE_TELEMETRY);
+    diag.debug(pkg.name, 'telemetry disabled', env.ENABLE_TELEMETRY);
 
     return next();
   }
 
-  diag.debug(name, 'tRPC instrumentation', 'incomingRequest');
+  diag.debug(pkg.name, 'tRPC instrumentation', 'incomingRequest');
 
   const spanName = `tRPC ${type.toUpperCase()} ${path}`;
   const baseAttributes = tRPCConventionFromPathAndType(path, type);
@@ -85,7 +85,7 @@ export const openTelemetry = trpc.middleware(async ({ path, type, next, getRawIn
 
   try {
     const result = await next();
-    diag.debug(name, 'tRPC instrumentation', 'requestHandled');
+    diag.debug(pkg.name, 'tRPC instrumentation', 'requestHandled');
 
     const responseSize = getPayloadSize(result.ok ? result.data : result.error);
 
@@ -109,11 +109,11 @@ export const openTelemetry = trpc.middleware(async ({ path, type, next, getRawIn
       responseSize,
     });
 
-    diag.debug(name, 'tRPC instrumentation', 'metrics recorded');
+    diag.debug(pkg.name, 'tRPC instrumentation', 'metrics recorded');
 
     return result;
   } catch (error) {
-    diag.error(name, 'tRPC instrumentation', 'requestError', error);
+    diag.error(pkg.name, 'tRPC instrumentation', 'requestError', error);
 
     const durationMs = Date.now() - startTimestamp;
     const trpcError = error instanceof TRPCError ? error : undefined;
@@ -132,7 +132,7 @@ export const openTelemetry = trpc.middleware(async ({ path, type, next, getRawIn
       responseSize: getPayloadSize(trpcError ? trpcError : error),
     });
 
-    diag.error(name, 'tRPC instrumentation', 'metrics recorded with error', error);
+    diag.error(pkg.name, 'tRPC instrumentation', 'metrics recorded with error', error);
 
     throw error;
   } finally {

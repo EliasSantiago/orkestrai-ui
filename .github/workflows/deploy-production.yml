@@ -56,15 +56,15 @@ jobs:
 
             # Build and start with docker compose (builds image locally from repo)
             echo "Building and starting application (building from source)..."
-            # Prefer modern plugin command when available
-            if command -v docker-compose >/dev/null 2>&1; then
-              DC="docker-compose"
-            else
-              DC="docker compose"
-            fi
+            # Enable BuildKit and use the modern docker compose plugin for better caching
+            export DOCKER_BUILDKIT=1
+            export COMPOSE_DOCKER_CLI_BUILD=1
 
-            $DC -f docker-compose.prod.yml down || true
-            $DC -f docker-compose.prod.yml up -d --build
+            # Use the plugin command explicitly
+            docker compose -f docker-compose.prod.yml down || true
+            # First build to encourage reuse of cache, then bring up
+            docker compose -f docker-compose.prod.yml build --progress=plain
+            docker compose -f docker-compose.prod.yml up -d
 
             # Cleanup old images (best-effort)
             docker image prune -af || true

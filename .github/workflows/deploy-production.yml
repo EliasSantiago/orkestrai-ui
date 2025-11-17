@@ -61,10 +61,10 @@ jobs:
 
           # Create .env file with secrets (no indentation)
           echo "Creating .env file with production secrets..."
-          cat > .env <<EOF
-CUSTOM_API_URL=${CUSTOM_API_URL}
-KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
-EOF
+          cat > .env <<-EOF
+          CUSTOM_API_URL=${CUSTOM_API_URL}
+          KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
+          EOF
 
           # Build and start with docker compose (builds image locally from repo)
           echo "Building and starting application (building from source)..."

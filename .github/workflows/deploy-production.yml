@@ -79,7 +79,7 @@ jobs:
           docker image prune -af || true
 
           echo "✅ Deploy concluído!"
-REMOTE
+          REMOTE
 
           # remove temp key
           rm -f /tmp/deploy_key

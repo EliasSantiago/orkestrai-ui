@@ -67,15 +67,13 @@ export class CustomAuthService {
   }
 
   /**
-   * Build full URL for an endpoint, avoiding duplicated segments like `/api/api`.
+   * Build full URL for an endpoint.
+   * Base URL already includes /api, so endpoints should NOT include /api prefix.
+   * @example buildUrl('auth/login') -> 'http://backend:8001/api/auth/login'
    */
   private buildUrl(endpoint: string): string {
     const base = this.baseUrl.replace(/\/+$/g, '');
-    let path = endpoint.replace(/^\/+/g, '');
-    // If base already ends with '/api' and path starts with 'api/', remove the duplicate.
-    if (base.endsWith('/api') && path.startsWith('api/')) {
-      path = path.replace(/^api\//, '');
-    }
+    const path = endpoint.replace(/^\/+/g, '');
     return `${base}/${path}`;
   }
 
@@ -145,7 +143,7 @@ export class CustomAuthService {
    */
   async login(credentials: LoginRequest): Promise<TokenResponse> {
     this.validateBaseUrl();
-    const response = await fetch(this.buildUrl('/api/auth/login'), {
+    const response = await fetch(this.buildUrl('auth/login'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -179,7 +177,7 @@ export class CustomAuthService {
    */
   async register(data: RegisterRequest): Promise<UserResponse> {
     this.validateBaseUrl();
-    const response = await fetch(this.buildUrl('/api/auth/register'), {
+    const response = await fetch(this.buildUrl('auth/register'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -204,7 +202,7 @@ export class CustomAuthService {
     const token = this.getAccessToken();
     if (!token) return null;
 
-    const response = await fetch(this.buildUrl('/api/auth/me'), {
+    const response = await fetch(this.buildUrl('auth/me'), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,

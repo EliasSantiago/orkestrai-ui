@@ -62,14 +62,13 @@ export class CustomMessageService {
   }
 
   /**
-   * Build full URL for an endpoint, avoiding duplicated segments like `/api/api`.
+   * Build full URL for an endpoint.
+   * Base URL already includes /api, so endpoints should NOT include /api prefix.
+   * @example buildUrl('agents/chat') -> 'http://backend:8001/api/agents/chat'
    */
   private buildUrl(endpoint: string): string {
     const base = this.baseUrl.replace(/\/+$/g, '');
-    let path = endpoint.replace(/^\/+/g, '');
-    if (base.endsWith('/api') && path.startsWith('api/')) {
-      path = path.replace(/^api\//, '');
-    }
+    const path = endpoint.replace(/^\/+/g, '');
     return `${base}/${path}`;
   }
 
@@ -119,7 +118,7 @@ export class CustomMessageService {
    * This is the main method for chatting with agents
    */
   async chat(request: ChatRequest): Promise<ChatResponse> {
-    return this.request<ChatResponse>('/api/agents/chat', {
+    return this.request<ChatResponse>('agents/chat', {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -134,7 +133,7 @@ export class CustomMessageService {
     content: string,
     metadata?: MessageMetadata,
   ): Promise<void> {
-    return this.request<void>(`/api/conversations/sessions/${sessionId}/messages`, {
+    return this.request<void>(`conversations/sessions/${sessionId}/messages`, {
       method: 'POST',
       body: JSON.stringify({
         content,
@@ -148,7 +147,7 @@ export class CustomMessageService {
    */
   async getMessages(sessionId: string, limit?: number): Promise<any> {
     const params = limit ? `?limit=${limit}` : '';
-    return this.request(`/api/conversations/sessions/${sessionId}${params}`);
+    return this.request(`conversations/sessions/${sessionId}${params}`);
   }
 }
 

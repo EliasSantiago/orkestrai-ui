@@ -67,14 +67,13 @@ export class CustomSessionService {
   }
 
   /**
-   * Build full URL for an endpoint, avoiding duplicated segments like `/api/api`.
+   * Build full URL for an endpoint.
+   * Base URL already includes /api, so endpoints should NOT include /api prefix.
+   * @example buildUrl('conversations/sessions') -> 'http://backend:8001/api/conversations/sessions'
    */
   private buildUrl(endpoint: string): string {
     const base = this.baseUrl.replace(/\/+$/g, '');
-    let path = endpoint.replace(/^\/+/g, '');
-    if (base.endsWith('/api') && path.startsWith('api/')) {
-      path = path.replace(/^api\//, '');
-    }
+    const path = endpoint.replace(/^\/+/g, '');
     return `${base}/${path}`;
   }
 
@@ -123,7 +122,7 @@ export class CustomSessionService {
    * Get all session IDs for the current user
    */
   async getSessions(): Promise<string[]> {
-    return this.request<string[]>('/api/conversations/sessions');
+    return this.request<string[]>('conversations/sessions');
   }
 
   /**
@@ -132,7 +131,7 @@ export class CustomSessionService {
   async getSessionHistory(sessionId: string, limit?: number): Promise<ConversationHistory> {
     const params = limit ? `?limit=${limit}` : '';
     return this.request<ConversationHistory>(
-      `/api/conversations/sessions/${sessionId}${params}`,
+      `conversations/sessions/${sessionId}${params}`,
     );
   }
 
@@ -140,14 +139,14 @@ export class CustomSessionService {
    * Get session information
    */
   async getSessionInfo(sessionId: string): Promise<SessionInfo> {
-    return this.request<SessionInfo>(`/api/conversations/sessions/${sessionId}/info`);
+    return this.request<SessionInfo>(`conversations/sessions/${sessionId}/info`);
   }
 
   /**
    * Delete a specific session
    */
   async deleteSession(sessionId: string): Promise<void> {
-    return this.request<void>(`/api/conversations/sessions/${sessionId}`, {
+    return this.request<void>(`conversations/sessions/${sessionId}`, {
       method: 'DELETE',
     });
   }
@@ -156,7 +155,7 @@ export class CustomSessionService {
    * Delete all sessions for the current user
    */
   async deleteAllSessions(): Promise<void> {
-    return this.request<void>('/api/conversations/sessions', {
+    return this.request<void>('conversations/sessions', {
       method: 'DELETE',
     });
   }
@@ -165,7 +164,7 @@ export class CustomSessionService {
    * Add a message to a session
    */
   async addMessage(sessionId: string, message: MessageCreate): Promise<void> {
-    return this.request<void>(`/api/conversations/sessions/${sessionId}/messages`, {
+    return this.request<void>(`conversations/sessions/${sessionId}/messages`, {
       method: 'POST',
       body: JSON.stringify(message),
     });
@@ -175,7 +174,7 @@ export class CustomSessionService {
    * Associate a session with the current user (usually done automatically)
    */
   async associateSession(sessionId: string): Promise<void> {
-    return this.request<void>(`/api/adk/sessions/${sessionId}/associate`, {
+    return this.request<void>(`adk/sessions/${sessionId}/associate`, {
       method: 'POST',
     });
   }

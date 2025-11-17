@@ -38,9 +38,12 @@ jobs:
 
           # Pass secrets as SSH environment variables (using -o SendEnv)
           ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" \
-            -o SendEnv=CUSTOM_API_URL -o SendEnv=KEY_VAULTS_SECRET \
-            "${GCP_USERNAME}@${GCP_HOST}" bash -s <<'REMOTE'
+            "${GCP_USERNAME}@${GCP_HOST}" bash -s "${CUSTOM_API_URL}" "${KEY_VAULTS_SECRET}" <<'REMOTE'
           set -euo pipefail
+
+          # Arguments passed from GitHub Actions
+          CUSTOM_API_URL="$1"
+          KEY_VAULTS_SECRET="$2"
 
           cd ~
 

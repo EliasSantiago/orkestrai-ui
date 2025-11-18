@@ -13,6 +13,12 @@ import {
   SessionRankItem,
   UpdateSessionParams,
 } from '@/types/session';
+import { customSessionService } from '../customSession';
+
+// Check if custom auth is enabled
+const enableCustomAuth =
+  typeof window !== 'undefined' &&
+  process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1';
 
 export class SessionService {
   hasSessions = async (): Promise<boolean> => {
@@ -24,6 +30,13 @@ export class SessionService {
     type: LobeSessionType,
     data: Partial<LobeAgentSession>,
   ): Promise<string> => {
+    // If custom auth is enabled, sessions are created automatically by the backend
+    // when sending messages, so we can return a temporary ID
+    if (enableCustomAuth) {
+      // Return a temporary ID - the real session will be created when first message is sent
+      return `temp-session-${Date.now()}`;
+    }
+
     const { config, group, meta, ...session } = data;
     return lambdaClient.session.createSession.mutate({
       config: { ...config, ...meta } as any,
@@ -33,10 +46,61 @@ export class SessionService {
   };
 
   cloneSession = (id: string, newTitle: string): Promise<string | undefined> => {
+    // Cloning not supported in custom backend mode
+    if (enableCustomAuth) {
+      return Promise.resolve(undefined);
+    }
     return lambdaClient.session.cloneSession.mutate({ id, newTitle });
   };
 
-  getGroupedSessions = (): Promise<ChatSessionList> => {
+  getGroupedSessions = async (): Promise<ChatSessionList> => {
+    // If custom auth is enabled, use custom API
+    if (enableCustomAuth) {
+      try {
+        const sessionIds = await customSessionService.getSessions();
+        
+        // Convert to ChatSessionList format
+        // Group by date (simplified - you might want to enhance this)
+        const sessions = await Promise.all(
+          sessionIds.map(async (sessionId) => {
+            try {
+              const info = await customSessionService.getSessionInfo(sessionId);
+              return {
+                id: sessionId,
+                type: 'agent' as const,
+                createdAt: info.last_activity ? new Date(info.last_activity).getTime() : Date.now(),
+                updatedAt: info.last_activity ? new Date(info.last_activity).getTime() : Date.now(),
+                meta: {
+                  title: `Session ${sessionId.substring(0, 8)}`,
+                },
+              };
+            } catch {
+              return {
+                id: sessionId,
+                type: 'agent' as const,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                meta: {
+                  title: `Session ${sessionId.substring(0, 8)}`,
+                },
+              };
+            }
+          }),
+        );
+
+        // Group by date
+        const grouped: ChatSessionList = {
+          sessionGroups: [],
+          sessions: sessions.sort((a, b) => b.updatedAt - a.updatedAt),
+        };
+
+        return grouped;
+      } catch (error) {
+        console.error('[SessionService] Failed to get grouped sessions via custom API:', error);
+        // Fallback to lambda
+      }
+    }
+
     return lambdaClient.session.getGroupedSessions.query();
   };
 
@@ -53,6 +117,13 @@ export class SessionService {
   };
 
   updateSession = (id: string, data: Partial<UpdateSessionParams>) => {
+    // Session updates not fully supported in custom backend mode
+    // Metadata updates could be stored in session metadata if backend supports it
+    if (enableCustomAuth) {
+      // For now, just return success
+      return Promise.resolve();
+    }
+
     const { group, pinned, meta, updatedAt } = data;
     return lambdaClient.session.updateSession.mutate({
       id,
@@ -93,14 +164,26 @@ export class SessionService {
   };
 
   searchSessions = (keywords: string): Promise<LobeSessions> => {
+    // Search not supported in custom backend mode
+    if (enableCustomAuth) {
+      return Promise.resolve([]);
+    }
     return lambdaClient.session.searchSessions.query({ keywords });
   };
 
   removeSession = (id: string) => {
+    // If custom auth is enabled, use custom API
+    if (enableCustomAuth) {
+      return customSessionService.deleteSession(id);
+    }
     return lambdaClient.session.removeSession.mutate({ id });
   };
 
   removeAllSessions = () => {
+    // If custom auth is enabled, use custom API
+    if (enableCustomAuth) {
+      return customSessionService.deleteAllSessions();
+    }
     return lambdaClient.session.removeAllSessions.mutate();
   };
 

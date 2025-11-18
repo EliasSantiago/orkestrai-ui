@@ -16,14 +16,41 @@ import type { HeatmapsProps } from '@lobehub/charts';
 
 import { INBOX_SESSION_ID } from '@/const/session';
 import { lambdaClient } from '@/libs/trpc/client';
+import { customMessageService } from '../customMessage';
+import { customSessionService } from '../customSession';
 
 import { abortableRequest } from '../utils/abortableRequest';
+
+// Check if custom auth is enabled
+const enableCustomAuth =
+  typeof window !== 'undefined' &&
+  process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1';
 
 export class MessageService {
   createMessage = async ({
     sessionId,
     ...params
   }: CreateMessageParams): Promise<CreateMessageResult> => {
+    // If custom auth is enabled, use custom API
+    if (enableCustomAuth && sessionId) {
+      try {
+        // Add message to session via custom API
+        await customMessageService.addMessage(
+          sessionId,
+          params.content || '',
+          params.metadata,
+        );
+        // Return a simplified result
+        return {
+          id: `msg-${Date.now()}`,
+          sessionId,
+        } as CreateMessageResult;
+      } catch (error) {
+        console.error('[MessageService] Failed to create message via custom API:', error);
+        // Fallback to lambda
+      }
+    }
+
     return lambdaClient.message.createMessage.mutate({
       ...params,
       sessionId: sessionId ? this.toDbSessionId(sessionId) : undefined,
@@ -35,6 +62,25 @@ export class MessageService {
     topicId?: string,
     groupId?: string,
   ): Promise<UIChatMessage[]> => {
+    // If custom auth is enabled, use custom API
+    if (enableCustomAuth && sessionId && !groupId) {
+      try {
+        const history = await customSessionService.getSessionHistory(sessionId);
+        // Convert backend format to UIChatMessage format
+        return history.messages.map((msg, index) => ({
+          id: `msg-${sessionId}-${index}`,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          createdAt: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now(),
+          updatedAt: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now(),
+          meta: msg.metadata || {},
+        })) as UIChatMessage[];
+      } catch (error) {
+        console.error('[MessageService] Failed to get messages via custom API:', error);
+        // Fallback to lambda
+      }
+    }
+
     const data = await lambdaClient.message.getMessages.query({
       groupId,
       sessionId: this.toDbSessionId(sessionId),

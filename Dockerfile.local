@@ -41,7 +41,6 @@ RUN sed -i '/turbopack.*:/d' next.config.ts && \
 ARG NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
 ARG NEXT_PUBLIC_CUSTOM_API_BASE_URL
 ARG KEY_VAULTS_SECRET
-ARG DATABASE_URL=postgresql://fake:fake@localhost:5432/fake
 
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -49,7 +48,7 @@ ENV NODE_ENV=production
 ENV NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=${NEXT_PUBLIC_ENABLE_CUSTOM_AUTH}
 ENV NEXT_PUBLIC_CUSTOM_API_BASE_URL=${NEXT_PUBLIC_CUSTOM_API_BASE_URL}
 ENV KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
-ENV DATABASE_URL=${DATABASE_URL}
+# DATABASE_URL não é mais necessário - database features desabilitadas quando custom auth está ativo
 
 # Desabilitar qualquer download de modelos locais
 ENV DISABLE_MODEL_DOWNLOAD=1

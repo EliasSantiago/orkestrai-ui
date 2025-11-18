@@ -69,7 +69,16 @@ export const pluginRouter = router({
   getPlugins: publicProcedure.query(async ({ ctx }): Promise<LobeTool[]> => {
     if (!ctx.userId) return [];
 
+    // If custom auth is enabled, return empty (frontend uses custom API)
+    if (process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1') {
+      return [];
+    }
+
     const serverDB = await getServerDB();
+    
+    // If database is not available, return empty
+    if (!serverDB) return [];
+    
     const pluginModel = new PluginModel(serverDB, ctx.userId);
 
     return pluginModel.query();

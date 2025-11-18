@@ -100,7 +100,16 @@ export const sessionRouter = router({
     const userId = ctx.userId;
     if (!userId) return { sessionGroups: [], sessions: [] };
 
+    // If custom auth is enabled, return empty (frontend uses custom API)
+    if (process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1') {
+      return { sessionGroups: [], sessions: [] };
+    }
+
     const serverDB = await getServerDB();
+    
+    // If database is not available, return empty
+    if (!serverDB) return { sessionGroups: [], sessions: [] };
+    
     const sessionModel = new SessionModel(serverDB, userId);
     const chatGroupModel = new ChatGroupModel(serverDB, userId);
 

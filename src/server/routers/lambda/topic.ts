@@ -103,7 +103,16 @@ export const topicRouter = router({
     .query(async ({ input, ctx }) => {
       if (!ctx.userId) return [];
 
+      // If custom auth is enabled, return empty (frontend uses custom API)
+      if (process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1') {
+        return [];
+      }
+
       const serverDB = await getServerDB();
+      
+      // If database is not available, return empty
+      if (!serverDB) return [];
+      
       const topicModel = new TopicModel(serverDB, ctx.userId);
 
       return topicModel.query(input);

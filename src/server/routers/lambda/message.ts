@@ -77,7 +77,16 @@ export const messageRouter = router({
     )
     .query(async ({ input, ctx }) => {
       if (!ctx.userId) return [];
+      
+      // If custom auth is enabled, return empty (frontend uses custom API)
+      if (process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1') {
+        return [];
+      }
+      
       const serverDB = await getServerDB();
+      
+      // If database is not available, return empty
+      if (!serverDB) return [];
 
       const messageModel = new MessageModel(serverDB, ctx.userId);
       const fileService = new FileService(serverDB, ctx.userId);

@@ -13,6 +13,15 @@ export const getDBInstance = (): LobeChatDatabase => {
   // In test environment, return a mock instance to avoid initialization errors
   if (process.env.NODE_ENV === 'test') return {} as LobeChatDatabase;
 
+  // When using custom backend authentication, database is optional
+  // The frontend will use HTTP API instead of local database
+  const isCustomAuth = process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1';
+  
+  if (isCustomAuth) {
+    console.log('⚠️  Custom auth enabled - database features disabled');
+    return null as any; // Routes will handle null and return empty data
+  }
+
   if (!serverDBEnv.KEY_VAULTS_SECRET) {
     throw new Error(
       ` \`KEY_VAULTS_SECRET\` is not set, please set it in your environment variables.

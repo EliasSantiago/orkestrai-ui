@@ -96,7 +96,7 @@ export const conversationLifecycle: StateCreator<
 
       if (backendAgentId) {
         console.log('[CustomChat] Using custom backend for agent:', backendAgentId);
-        // Use custom backend flow
+        // Use custom backend flow with specific agent
         await get().sendMessageWithCustomBackend({
           message,
           fileIdList,
@@ -104,6 +104,8 @@ export const conversationLifecycle: StateCreator<
         });
         return;
       }
+      // If custom auth is enabled but no backendAgentId, aiChatService.sendMessageInServer
+      // will use /api/openai/chat/completions automatically - no need to return early
     }
 
     const messages = displayMessageSelectors.activeDisplayMessages(get());

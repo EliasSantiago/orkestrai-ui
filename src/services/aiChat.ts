@@ -78,7 +78,28 @@ class AiChatService {
     // Convert to OpenAI format
     const messages: Array<{ role: string; content: string }> = [];
 
-    // Add user message
+    // If we have a sessionId, try to get message history to include context
+    if (params.sessionId) {
+      try {
+        const { customSessionService } = await import('./customSession');
+        const history = await customSessionService.getSessionHistory(params.sessionId, 10); // Get last 10 messages
+        
+        // Add previous messages to context (excluding the current one)
+        history.messages.forEach((msg) => {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            messages.push({
+              role: msg.role,
+              content: msg.content,
+            });
+          }
+        });
+      } catch (error) {
+        // If we can't get history, continue with just the new message
+        console.warn('[AiChatService] Could not fetch message history:', error);
+      }
+    }
+
+    // Add the new user message
     messages.push({
       role: 'user',
       content: params.newUserMessage.content,
@@ -86,9 +107,16 @@ class AiChatService {
 
     // Call OpenAI compatible endpoint
     const response = await this.authenticatedRequest<{
+      id?: string;
       choices: Array<{
         message: { role: string; content: string };
+        finish_reason?: string;
       }>;
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+      };
     }>(
       'api/openai/chat/completions',
       {
@@ -104,31 +132,38 @@ class AiChatService {
 
     // Extract response
     const assistantContent = response.choices[0]?.message?.content || '';
+    const timestamp = Date.now();
 
-    // For now, return a simplified response
-    // In a full implementation, you'd need to create messages in your backend
-    // and return proper IDs
+    // Generate consistent IDs
+    const userMessageId = `user-${timestamp}`;
+    const assistantMessageId = `assistant-${timestamp}`;
+
+    // Return response in the expected format
     return {
-      assistantMessageId: `temp-${Date.now()}`,
+      assistantMessageId,
       isCreateNewTopic: false,
       messages: [
         {
-          id: `user-${Date.now()}`,
+          id: userMessageId,
           role: 'user',
           content: params.newUserMessage.content,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          files: params.newUserMessage.files,
+          parentId: params.newUserMessage.parentId,
         },
         {
-          id: `assistant-${Date.now()}`,
+          id: assistantMessageId,
           role: 'assistant',
           content: assistantContent,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: timestamp + 1,
+          updatedAt: timestamp + 1,
+          model: params.newAssistantMessage.model,
+          provider: params.newAssistantMessage.provider,
         },
       ] as any,
       topicId: params.topicId || '',
-      userMessageId: `user-${Date.now()}`,
+      userMessageId,
     };
   }
 
@@ -136,20 +171,20 @@ class AiChatService {
     params: SendMessageServerParams,
     abortController: AbortController,
   ): Promise<SendMessageServerResponse> {
-    // If custom auth is enabled, use custom API
+    // If custom auth is enabled, ALWAYS use custom API - never fallback to lambda
     if (enableCustomAuth) {
-      // Try to get backendAgentId from session
-      // For now, we'll use OpenAI compatible API as fallback
-      // In a full implementation, you'd get the agentId from the session
-      try {
-        return await this.sendMessageViaOpenAI(params, abortController);
-      } catch (error) {
-        console.error('[AiChatService] Failed to use custom API, falling back to lambda:', error);
-        // Fallback to lambda if custom API fails
+      // Check if we have authentication token
+      const token = customAuthService.getAccessToken();
+      if (!token) {
+        throw new Error('Not authenticated. Please login again.');
       }
+
+      // Always use OpenAI compatible API when custom auth is enabled
+      // This ensures we never call /trpc/lambda when custom auth is active
+      return await this.sendMessageViaOpenAI(params, abortController);
     }
 
-    // Use lambda client as before
+    // Only use lambda client when custom auth is NOT enabled
     return lambdaClient.aiChat.sendMessageInServer.mutate(cleanObject(params), {
       context: { showNotification: false },
       signal: abortController?.signal,
@@ -160,53 +195,54 @@ class AiChatService {
     params: Omit<StructureOutputParams, 'keyVaultsPayload'>,
     abortController: AbortController,
   ) => {
-    // If custom auth is enabled, use OpenAI compatible API with structured output
+    // If custom auth is enabled, ALWAYS use custom API - never fallback to lambda
     if (enableCustomAuth) {
-      try {
-        const token = customAuthService.getAccessToken();
-        if (!token) {
-          throw new Error('Not authenticated');
-        }
-
-        const response = await fetch(this.buildUrl('api/openai/chat/completions'), {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: params.model,
-            messages: params.messages,
-            tools: params.tools,
-            response_format: params.schema
-              ? {
-                  type: 'json_schema',
-                  json_schema: {
-                    name: params.schema.name,
-                    description: params.schema.description,
-                    schema: params.schema.schema,
-                    strict: params.schema.strict,
-                  },
-                }
-              : undefined,
-            stream: false,
-          }),
-          signal: abortController?.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to generate JSON');
-        }
-
-        const data = await response.json();
-        return data.choices[0]?.message?.content || '';
-      } catch (error) {
-        console.error('[AiChatService] Failed to use custom API for JSON, falling back to lambda:', error);
-        // Fallback to lambda
+      const token = customAuthService.getAccessToken();
+      if (!token) {
+        throw new Error('Not authenticated. Please login again.');
       }
+
+      const response = await fetch(this.buildUrl('api/openai/chat/completions'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: params.model,
+          messages: params.messages,
+          tools: params.tools,
+          response_format: params.schema
+            ? {
+                type: 'json_schema',
+                json_schema: {
+                  name: params.schema.name,
+                  description: params.schema.description,
+                  schema: params.schema.schema,
+                  strict: params.schema.strict,
+                },
+              }
+            : undefined,
+          stream: false,
+        }),
+        signal: abortController?.signal,
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          customAuthService.logout();
+          throw new Error('Authentication failed. Please login again.');
+        }
+
+        const error = await response.json().catch(() => ({ detail: 'Failed to generate JSON' }));
+        throw new Error(error.detail?.[0]?.msg || error.message || 'Failed to generate JSON');
+      }
+
+      const data = await response.json();
+      return data.choices[0]?.message?.content || '';
     }
 
-    // Use lambda client as before
+    // Only use lambda client when custom auth is NOT enabled
     return lambdaClient.aiChat.outputJSON.mutate(
       { ...params, keyVaultsPayload: createXorKeyVaultsPayload(params.provider) },
       {

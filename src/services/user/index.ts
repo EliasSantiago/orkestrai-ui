@@ -91,7 +91,7 @@ export class UserService {
       
       // Only sync if there are preferences to update
       if (Object.keys(backendPrefs).length > 0) {
-        await customApiService.request('/api/user/preferences', {
+        await customApiService.request('api/user/preferences', {
           method: 'PUT',
           body: JSON.stringify(backendPrefs),
         });
@@ -109,7 +109,7 @@ export class UserService {
     if (!enableCustomAuth) return null;
     
     try {
-      const backendPrefs = await customApiService.request<Record<string, any>>('/api/user/preferences');
+      const backendPrefs = await customApiService.request<Record<string, any>>('api/user/preferences');
       
       // Convert backend format to UserPreference
       const userPrefs: Partial<UserPreference> = {};
@@ -169,7 +169,7 @@ export class UserService {
         settings: settings,
       };
       
-      await customApiService.request('/api/user/preferences', {
+      await customApiService.request('api/user/preferences', {
         method: 'PUT',
         body: JSON.stringify(backendPrefs),
       });
@@ -186,7 +186,7 @@ export class UserService {
     if (!enableCustomAuth) return null;
     
     try {
-      const backendPrefs = await customApiService.request<Record<string, any>>('/api/user/preferences');
+      const backendPrefs = await customApiService.request<Record<string, any>>('api/user/preferences');
       
       if (backendPrefs.settings) {
         return backendPrefs.settings as PartialDeep<UserSettings>;
@@ -205,7 +205,7 @@ export class UserService {
     // If custom auth is enabled, reset backend preferences too
     if (enableCustomAuth) {
       try {
-        await customApiService.request('/api/user/preferences', {
+        await customApiService.request('api/user/preferences', {
           method: 'DELETE',
         });
       } catch (error) {

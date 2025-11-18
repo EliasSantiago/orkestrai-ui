@@ -135,12 +135,16 @@ export class CustomApiService {
 
   /**
    * Build full URL for an endpoint.
-   * Base URL already includes /api, so endpoints should NOT include /api prefix.
-   * @example buildUrl('agents') -> 'http://backend:8001/api/agents'
+   * Base URL is the root (e.g., http://localhost:8001), so endpoints should include /api prefix.
+   * @example buildUrl('api/agents') -> 'http://localhost:8001/api/agents'
    */
   private buildUrl(endpoint: string): string {
     const base = this.baseUrl.replace(/\/+$/g, '');
     const path = endpoint.replace(/^\/+/g, '');
+    // Ensure /api prefix if not already present
+    if (!path.startsWith('api/')) {
+      return `${base}/api/${path}`;
+    }
     return `${base}/${path}`;
   }
 
@@ -197,7 +201,7 @@ export class CustomApiService {
    * Get all agents
    */
   async getAgents(): Promise<AgentResponse[]> {
-    return this.request<AgentResponse[]>('agents');
+    return this.request<AgentResponse[]>('api/agents');
   }
 
   /**
@@ -218,14 +222,14 @@ export class CustomApiService {
    * Get a specific agent by ID
    */
   async getAgent(agentId: number): Promise<AgentResponse> {
-    return this.request<AgentResponse>(`agents/${agentId}`);
+    return this.request<AgentResponse>(`api/agents/${agentId}`);
   }
 
   /**
    * Create a new agent
    */
   async createAgent(agent: AgentCreate): Promise<AgentResponse> {
-    return this.request<AgentResponse>('agents', {
+    return this.request<AgentResponse>('api/agents', {
       method: 'POST',
       body: JSON.stringify(agent),
     });
@@ -235,7 +239,7 @@ export class CustomApiService {
    * Update an agent
    */
   async updateAgent(agentId: number, agent: AgentUpdate): Promise<AgentResponse> {
-    return this.request<AgentResponse>(`agents/${agentId}`, {
+    return this.request<AgentResponse>(`api/agents/${agentId}`, {
       method: 'PUT',
       body: JSON.stringify(agent),
     });
@@ -245,7 +249,7 @@ export class CustomApiService {
    * Delete an agent
    */
   async deleteAgent(agentId: number): Promise<void> {
-    return this.request<void>(`agents/${agentId}`, {
+    return this.request<void>(`api/agents/${agentId}`, {
       method: 'DELETE',
     });
   }
@@ -254,7 +258,7 @@ export class CustomApiService {
    * Chat with an agent
    */
   async chat(request: ChatRequest): Promise<ChatResponse> {
-    return this.request<ChatResponse>('agents/chat', {
+    return this.request<ChatResponse>('api/agents/chat', {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -264,7 +268,7 @@ export class CustomApiService {
    * Get user sessions
    */
   async getSessions(): Promise<string[]> {
-    return this.request<string[]>('conversations/sessions');
+    return this.request<string[]>('api/conversations/sessions');
   }
 
   /**
@@ -272,14 +276,14 @@ export class CustomApiService {
    */
   async getSessionHistory(sessionId: string, limit?: number): Promise<any> {
     const params = limit ? `?limit=${limit}` : '';
-    return this.request(`conversations/sessions/${sessionId}${params}`);
+    return this.request(`api/conversations/sessions/${sessionId}${params}`);
   }
 
   /**
    * Delete a session
    */
   async deleteSession(sessionId: string): Promise<void> {
-    return this.request<void>(`conversations/sessions/${sessionId}`, {
+    return this.request<void>(`api/conversations/sessions/${sessionId}`, {
       method: 'DELETE',
     });
   }
@@ -288,7 +292,7 @@ export class CustomApiService {
    * Delete all sessions
    */
   async deleteAllSessions(): Promise<void> {
-    return this.request<void>('conversations/sessions', {
+    return this.request<void>('api/conversations/sessions', {
       method: 'DELETE',
     });
   }

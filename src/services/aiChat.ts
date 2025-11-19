@@ -24,12 +24,29 @@ class AiChatService {
       throw new Error('NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured!');
     }
 
-    const base = baseUrl.replaceAll(/\/+$/g, '');
-    const path = endpoint.replaceAll(/^\/+/g, '');
-    if (!path.startsWith('api/')) {
+    // Remove trailing slashes from base URL
+    let base = baseUrl.replaceAll(/\/+$/g, '');
+    // Remove leading slashes from endpoint
+    let path = endpoint.replaceAll(/^\/+/g, '');
+    
+    // Check if base URL already ends with /api
+    const baseEndsWithApi = base.endsWith('/api');
+    
+    // Check if path already starts with api/
+    const pathStartsWithApi = path.startsWith('api/');
+    
+    // Build URL avoiding duplication
+    if (baseEndsWithApi && pathStartsWithApi) {
+      // Base ends with /api and path starts with api/ -> remove api/ from path
+      path = path.replace(/^api\//, '');
+      return `${base}/${path}`;
+    } else if (!baseEndsWithApi && !pathStartsWithApi) {
+      // Neither has /api -> add it
       return `${base}/api/${path}`;
+    } else {
+      // One has /api, the other doesn't -> just concatenate
+      return `${base}/${path}`;
     }
-    return `${base}/${path}`;
   }
 
   /**

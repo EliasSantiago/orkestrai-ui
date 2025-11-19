@@ -42,12 +42,29 @@ export class RestApiService {
   }
 
   private buildUrl(endpoint: string): string {
-    const base = this.baseUrl.replace(/\/+$/g, '');
-    const path = endpoint.replace(/^\/+/g, '');
-    if (!path.startsWith('api/')) {
+    // Remove trailing slashes from base URL
+    let base = this.baseUrl.replace(/\/+$/g, '');
+    // Remove leading slashes from endpoint
+    let path = endpoint.replace(/^\/+/g, '');
+    
+    // Check if base URL already ends with /api
+    const baseEndsWithApi = base.endsWith('/api');
+    
+    // Check if path already starts with api/
+    const pathStartsWithApi = path.startsWith('api/');
+    
+    // Build URL avoiding duplication
+    if (baseEndsWithApi && pathStartsWithApi) {
+      // Base ends with /api and path starts with api/ -> remove api/ from path
+      path = path.replace(/^api\//, '');
+      return `${base}/${path}`;
+    } else if (!baseEndsWithApi && !pathStartsWithApi) {
+      // Neither has /api -> add it
       return `${base}/api/${path}`;
+    } else {
+      // One has /api, the other doesn't -> just concatenate
+      return `${base}/${path}`;
     }
-    return `${base}/${path}`;
   }
 
   /**
@@ -871,6 +888,18 @@ export class RestApiService {
     return this.request(`api/knowledge-bases/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // ============================================
+  // Config Routes
+  // ============================================
+
+  async getGlobalConfig() {
+    return this.request('api/config/global');
+  }
+
+  async getDefaultAgentConfig() {
+    return this.request('api/config/default-agent');
   }
 }
 

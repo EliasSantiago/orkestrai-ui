@@ -62,6 +62,7 @@ jobs:
           cat > .env <<EOF
           CUSTOM_API_URL=${CUSTOM_API_URL}
           KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
+          NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
           EOF
 
           # Build and start with docker compose (builds image locally from repo)

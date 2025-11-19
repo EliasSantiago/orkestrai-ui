@@ -65,6 +65,29 @@ const errorHandlingLink: TRPCLink<LambdaRouter> = () => {
     );
 };
 
+// Get API base URL - use custom backend when custom auth is enabled
+const getApiUrl = (): string => {
+  // Check if custom auth is enabled
+  const enableCustomAuth =
+    typeof window !== 'undefined' &&
+    process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1';
+
+  if (enableCustomAuth) {
+    const customApiUrl = process.env.NEXT_PUBLIC_CUSTOM_API_BASE_URL;
+    if (customApiUrl) {
+      // Remove trailing slashes and ensure we use the base URL
+      const baseUrl = customApiUrl.replace(/\/+$/g, '');
+      // Convert tRPC endpoint to REST API endpoint
+      // /trpc/lambda/aiChat.sendMessageInServer -> http://34.42.168.19:8001/api/...
+      // For now, we'll proxy through the backend API
+      return `${baseUrl}/trpc/lambda`;
+    }
+  }
+
+  // Default to local lambda endpoint
+  return '/trpc/lambda';
+};
+
 // 2. httpBatchLink
 const customHttpBatchLink = httpBatchLink({
   fetch: async (input, init) => {
@@ -81,6 +104,24 @@ const customHttpBatchLink = httpBatchLink({
     return await fetch(input, init as RequestInit);
   },
   headers: async () => {
+    // Check if custom auth is enabled
+    const enableCustomAuth =
+      typeof window !== 'undefined' &&
+      process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1';
+
+    if (enableCustomAuth) {
+      // Use custom auth token for authenticated requests
+      const { customAuthService } = await import('@/services/customAuth');
+      const token = customAuthService.getAccessToken();
+      
+      if (token) {
+        return {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        };
+      }
+    }
+
     // dynamic import to avoid circular dependency
     const { createHeaderWithAuth } = await import('@/services/_auth');
 
@@ -104,7 +145,7 @@ const customHttpBatchLink = httpBatchLink({
   },
   maxURLLength: 2083,
   transformer: superjson,
-  url: '/trpc/lambda',
+  url: getApiUrl(),
 });
 
 // 3. assembly links

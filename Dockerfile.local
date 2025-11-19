@@ -12,9 +12,11 @@ COPY package.json ./
 COPY pnpm-workspace.yaml ./
 COPY packages ./packages
 
-# Install dependencies
+# Install dependencies with cache mount for pnpm store
 # Sem lock file, pnpm gerará um durante install
-RUN pnpm install --no-frozen-lockfile --prefer-offline
+# Cache mount reutiliza pacotes entre builds (muito mais rápido!)
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --no-frozen-lockfile --prefer-offline
 
 FROM base AS builder
 

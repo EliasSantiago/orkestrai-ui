@@ -76,6 +76,23 @@ export default function CustomLogin() {
         password: values.password,
       });
 
+      // Update user store immediately after login
+      const { useUserStore } = await import('@/store/user');
+      const user = customAuthService.getUser();
+      if (user) {
+        useUserStore.setState({
+          isSignedIn: true,
+          isLoaded: true,
+          user: {
+            id: user.id.toString(),
+            email: user.email,
+            fullName: user.name,
+            username: user.email.split('@')[0],
+            avatar: '',
+          },
+        });
+      }
+
       // Redirect to callback URL or home
       router.push(callbackUrl);
       router.refresh();

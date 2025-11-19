@@ -86,101 +86,105 @@ class AiChatService {
   }
 
   /**
-   * Send message using OpenAI compatible API
+   * Send message using session chat API (compatible with LobeChat)
+   * This endpoint creates both user and assistant messages automatically
    */
-  private async sendMessageViaOpenAI(
+  private async sendMessageViaSessionChat(
     params: SendMessageServerParams,
     abortController: AbortController,
   ): Promise<SendMessageServerResponse> {
-    // Convert to OpenAI format
-    const messages: Array<{ content: string, role: string; }> = [];
-
-    // If we have a sessionId, try to get message history to include context
-    if (params.sessionId) {
+    // Ensure we have a sessionId - create one if needed
+    let sessionId = params.sessionId;
+    
+    if (!sessionId) {
+      // Create a new session with default agent (ID 1)
       try {
-        const { customSessionService } = await import('./customSession');
-        const history = await customSessionService.getSessionHistory(params.sessionId, 10); // Get last 10 messages
+        const { restApiService } = await import('./restApi');
         
-        // Add previous messages to context (excluding the current one)
-        history.messages.forEach((msg) => {
-          if (msg.role === 'user' || msg.role === 'assistant') {
-            messages.push({
-              content: msg.content,
-              role: msg.role,
-            });
-          }
+        // Create session with default agent
+        const newSession: any = await restApiService.createSession({
+          type: 'agent',
+          meta: {
+            agentId: 1, // Default agent ID
+          },
         });
+        
+        // Handle different response formats
+        sessionId = newSession?.id || newSession?.session_id || newSession?.sessionId;
+        
+        if (!sessionId) {
+          // If session creation doesn't return ID, try to get it from the response
+          // or generate a temporary one (backend should handle this)
+          console.warn('[AiChatService] Session created but no ID returned:', newSession);
+          throw new Error('Failed to get session ID from response');
+        }
       } catch (error) {
-        // If we can't get history, continue with just the new message
-        console.warn('[AiChatService] Could not fetch message history:', error);
+        console.error('[AiChatService] Failed to create session:', error);
+        throw new Error('Failed to create session. Please try again.');
       }
     }
 
-    // Add the new user message
-    messages.push({
-      content: params.newUserMessage.content,
-      role: 'user',
-    });
-
-    // Call OpenAI compatible endpoint
+    // Call session chat endpoint (creates both messages automatically)
     const response = await this.authenticatedRequest<{
-      choices: Array<{
-        finish_reason?: string;
-        message: { content: string, role: string; };
+      user_message_id: string;
+      assistant_message_id: string;
+      session_id: string;
+      topic_id: string | null;
+      is_create_new_topic: boolean;
+      messages: Array<{
+        id: string | null;
+        role: string;
+        content: string;
+        timestamp: string | null;
+        createdAt: number | null;
+        updatedAt: number | null;
+        metadata: Record<string, any> | null;
+        model: string | null;
+        provider: string | null;
+        parentId: string | null;
       }>;
-      id?: string;
-      usage?: {
-        completion_tokens?: number;
-        prompt_tokens?: number;
-        total_tokens?: number;
-      };
+      topics: Array<any>;
     }>(
-      'api/openai/chat/completions',
+      `api/conversations/sessions/${sessionId}/chat`,
       {
         body: JSON.stringify({
-          messages,
-          model: params.newAssistantMessage.model || 'gpt-4o-mini',
-          stream: false,
+          message: params.newUserMessage.content,
+          model: params.newAssistantMessage.model || null,
+          provider: params.newAssistantMessage.provider || null,
+          files: params.newUserMessage.files || null,
+          parent_id: params.newUserMessage.parentId || null,
+          topic_id: params.topicId || null,
+          create_new_topic: false,
         }),
         method: 'POST',
         signal: abortController?.signal,
       },
     );
 
-    // Extract response
-    const assistantContent = response.choices[0]?.message?.content || '';
-    const timestamp = Date.now();
+    // Convert backend response to LobeChat format
+    const userMessage = response.messages.find((m) => m.role === 'user');
+    const assistantMessage = response.messages.find((m) => m.role === 'assistant');
 
-    // Generate consistent IDs
-    const userMessageId = `user-${timestamp}`;
-    const assistantMessageId = `assistant-${timestamp}`;
+    if (!userMessage || !assistantMessage) {
+      throw new Error('Invalid response from server');
+    }
 
-    // Return response in the expected format
     return {
-      assistantMessageId,
-      isCreateNewTopic: false,
-      messages: [
-        {
-          content: params.newUserMessage.content,
-          createdAt: timestamp,
-          files: params.newUserMessage.files,
-          id: userMessageId,
-          parentId: params.newUserMessage.parentId,
-          role: 'user',
-          updatedAt: timestamp,
-        },
-        {
-          content: assistantContent,
-          createdAt: timestamp + 1,
-          id: assistantMessageId,
-          model: params.newAssistantMessage.model,
-          provider: params.newAssistantMessage.provider,
-          role: 'assistant',
-          updatedAt: timestamp + 1,
-        },
-      ] as any,
-      topicId: params.topicId || '',
-      userMessageId,
+      assistantMessageId: response.assistant_message_id,
+      isCreateNewTopic: response.is_create_new_topic,
+      messages: response.messages.map((msg) => ({
+        content: msg.content,
+        createdAt: msg.createdAt || (msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()),
+        files: msg.metadata?.files || [],
+        id: msg.id || `msg-${Date.now()}`,
+        model: msg.model,
+        parentId: msg.parentId,
+        provider: msg.provider,
+        role: msg.role as 'user' | 'assistant',
+        updatedAt: msg.updatedAt || (msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()),
+      })) as any,
+      topicId: response.topic_id || '',
+      userMessageId: response.user_message_id,
     };
   }
 
@@ -196,9 +200,10 @@ class AiChatService {
         throw new Error('Not authenticated. Please login again.');
       }
 
-      // Always use OpenAI compatible API when custom auth is enabled
+      // Always use session chat API when custom auth is enabled
       // This ensures we never call /trpc/lambda when custom auth is active
-      return await this.sendMessageViaOpenAI(params, abortController);
+      // The session chat API creates both messages automatically and handles agent assignment
+      return await this.sendMessageViaSessionChat(params, abortController);
     }
 
     // Only use lambda client when custom auth is NOT enabled

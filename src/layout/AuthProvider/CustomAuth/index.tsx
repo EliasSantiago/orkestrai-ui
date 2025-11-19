@@ -6,6 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { enableCustomAuth } from '@/const/auth';
 import { customAuthService } from '@/services/customAuth';
 
+import CustomAuthUserUpdater from './UserUpdater';
+
 const CustomAuthProvider = ({ children }: PropsWithChildren) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -69,7 +71,12 @@ const CustomAuthProvider = ({ children }: PropsWithChildren) => {
     );
   }
 
-  return children;
+  return (
+    <>
+      {enableCustomAuth && <CustomAuthUserUpdater />}
+      {children}
+    </>
+  );
 };
 
 export default CustomAuthProvider;

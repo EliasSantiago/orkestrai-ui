@@ -24,8 +24,8 @@ class AiChatService {
       throw new Error('NEXT_PUBLIC_CUSTOM_API_BASE_URL is not configured!');
     }
 
-    const base = baseUrl.replace(/\/+$/g, '');
-    const path = endpoint.replace(/^\/+/g, '');
+    const base = baseUrl.replaceAll(/\/+$/g, '');
+    const path = endpoint.replaceAll(/^\/+/g, '');
     if (!path.startsWith('api/')) {
       return `${base}/api/${path}`;
     }
@@ -37,7 +37,7 @@ class AiChatService {
    */
   private async authenticatedRequest<T>(
     endpoint: string,
-    options: RequestInit = {},
+    options: globalThis.RequestInit = {},
   ): Promise<T> {
     const token = customAuthService.getAccessToken();
     if (!token) {
@@ -76,7 +76,7 @@ class AiChatService {
     abortController: AbortController,
   ): Promise<SendMessageServerResponse> {
     // Convert to OpenAI format
-    const messages: Array<{ role: string; content: string }> = [];
+    const messages: Array<{ content: string, role: string; }> = [];
 
     // If we have a sessionId, try to get message history to include context
     if (params.sessionId) {
@@ -88,8 +88,8 @@ class AiChatService {
         history.messages.forEach((msg) => {
           if (msg.role === 'user' || msg.role === 'assistant') {
             messages.push({
-              role: msg.role,
               content: msg.content,
+              role: msg.role,
             });
           }
         });
@@ -101,31 +101,31 @@ class AiChatService {
 
     // Add the new user message
     messages.push({
-      role: 'user',
       content: params.newUserMessage.content,
+      role: 'user',
     });
 
     // Call OpenAI compatible endpoint
     const response = await this.authenticatedRequest<{
-      id?: string;
       choices: Array<{
-        message: { role: string; content: string };
         finish_reason?: string;
+        message: { content: string, role: string; };
       }>;
+      id?: string;
       usage?: {
-        prompt_tokens?: number;
         completion_tokens?: number;
+        prompt_tokens?: number;
         total_tokens?: number;
       };
     }>(
       'api/openai/chat/completions',
       {
-        method: 'POST',
         body: JSON.stringify({
-          model: params.newAssistantMessage.model || 'gpt-4o-mini',
           messages,
+          model: params.newAssistantMessage.model || 'gpt-4o-mini',
           stream: false,
         }),
+        method: 'POST',
         signal: abortController?.signal,
       },
     );
@@ -144,22 +144,22 @@ class AiChatService {
       isCreateNewTopic: false,
       messages: [
         {
-          id: userMessageId,
-          role: 'user',
           content: params.newUserMessage.content,
           createdAt: timestamp,
-          updatedAt: timestamp,
           files: params.newUserMessage.files,
+          id: userMessageId,
           parentId: params.newUserMessage.parentId,
+          role: 'user',
+          updatedAt: timestamp,
         },
         {
-          id: assistantMessageId,
-          role: 'assistant',
           content: assistantContent,
           createdAt: timestamp + 1,
-          updatedAt: timestamp + 1,
+          id: assistantMessageId,
           model: params.newAssistantMessage.model,
           provider: params.newAssistantMessage.provider,
+          role: 'assistant',
+          updatedAt: timestamp + 1,
         },
       ] as any,
       topicId: params.topicId || '',
@@ -203,28 +203,28 @@ class AiChatService {
       }
 
       const response = await fetch(this.buildUrl('api/openai/chat/completions'), {
-        method: 'POST',
+        body: JSON.stringify({
+          messages: params.messages,
+          model: params.model,
+          response_format: params.schema
+            ? {
+                json_schema: {
+                  description: params.schema.description,
+                  name: params.schema.name,
+                  schema: params.schema.schema,
+                  strict: params.schema.strict,
+                },
+                type: 'json_schema',
+              }
+            : undefined,
+          stream: false,
+          tools: params.tools,
+        }),
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: params.model,
-          messages: params.messages,
-          tools: params.tools,
-          response_format: params.schema
-            ? {
-                type: 'json_schema',
-                json_schema: {
-                  name: params.schema.name,
-                  description: params.schema.description,
-                  schema: params.schema.schema,
-                  strict: params.schema.strict,
-                },
-              }
-            : undefined,
-          stream: false,
-        }),
+        method: 'POST',
         signal: abortController?.signal,
       });
 

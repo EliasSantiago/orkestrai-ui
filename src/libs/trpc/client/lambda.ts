@@ -66,6 +66,8 @@ const errorHandlingLink: TRPCLink<LambdaRouter> = () => {
 };
 
 // Get API base URL - use custom backend when custom auth is enabled
+// NOTE: When NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1, all services use REST directly via restApiService.
+// This lambdaClient is only used when custom auth is NOT enabled (local development mode).
 const getApiUrl = (): string => {
   // Check if custom auth is enabled
   const enableCustomAuth =
@@ -73,18 +75,18 @@ const getApiUrl = (): string => {
     process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1';
 
   if (enableCustomAuth) {
+    // When custom auth is enabled, services should use restApiService directly.
+    // This lambdaClient should not be used, but if it is, return a placeholder.
+    // The backend no longer has a /trpc/lambda proxy endpoint.
     const customApiUrl = process.env.NEXT_PUBLIC_CUSTOM_API_BASE_URL;
     if (customApiUrl) {
-      // Remove trailing slashes and ensure we use the base URL
-      const baseUrl = customApiUrl.replace(/\/+$/g, '');
-      // Convert tRPC endpoint to REST API endpoint
-      // /trpc/lambda/aiChat.sendMessageInServer -> http://34.42.168.19:8001/api/...
-      // For now, we'll proxy through the backend API
-      return `${baseUrl}/trpc/lambda`;
+      // Return a non-existent endpoint to force errors if someone tries to use lambdaClient
+      // with custom auth enabled. This helps catch any remaining tRPC calls.
+      return `${customApiUrl}/trpc/lambda-deprecated`;
     }
   }
 
-  // Default to local lambda endpoint
+  // Default to local lambda endpoint (only used when custom auth is NOT enabled)
   return '/trpc/lambda';
 };
 

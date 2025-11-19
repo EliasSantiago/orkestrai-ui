@@ -14,6 +14,7 @@ import {
   UpdateSessionParams,
 } from '@/types/session';
 import { customSessionService } from '../customSession';
+import { restApiService } from '../restApi';
 
 // Check if custom auth is enabled
 const enableCustomAuth =
@@ -105,10 +106,16 @@ export class SessionService {
     range?: [string, string];
     startDate?: string;
   }): Promise<number> => {
+    if (enableCustomAuth) {
+      return restApiService.countSessions(params);
+    }
     return lambdaClient.session.countSessions.query(params);
   };
 
   rankSessions = async (limit?: number): Promise<SessionRankItem[]> => {
+    if (enableCustomAuth) {
+      return restApiService.rankSessions(limit);
+    }
     return lambdaClient.session.rankSessions.query(limit);
   };
 
@@ -138,6 +145,11 @@ export class SessionService {
     config: PartialDeep<LobeAgentConfig>,
     signal?: AbortSignal,
   ) => {
+    if (enableCustomAuth) {
+      // For custom auth, session config updates are handled by the backend
+      // Return a resolved promise as the backend manages this
+      return Promise.resolve();
+    }
     return lambdaClient.session.updateSessionConfig.mutate(
       { id, value: config },
       {
@@ -148,6 +160,9 @@ export class SessionService {
   };
 
   updateSessionMeta = (id: string, meta: Partial<MetaData>, signal?: AbortSignal) => {
+    if (enableCustomAuth) {
+      return restApiService.updateSession(id, { meta });
+    }
     return lambdaClient.session.updateSessionConfig.mutate({ id, value: meta }, { signal });
   };
 
@@ -156,13 +171,15 @@ export class SessionService {
     value: Partial<LobeAgentChatConfig>,
     signal?: AbortSignal,
   ) => {
+    if (enableCustomAuth) {
+      return restApiService.updateSessionChatConfig(id, value);
+    }
     return lambdaClient.session.updateSessionChatConfig.mutate({ id, value }, { signal });
   };
 
   searchSessions = (keywords: string): Promise<LobeSessions> => {
-    // Search not supported in custom backend mode
     if (enableCustomAuth) {
-      return Promise.resolve([]);
+      return restApiService.searchSessions(keywords);
     }
     return lambdaClient.session.searchSessions.query({ keywords });
   };
@@ -188,22 +205,37 @@ export class SessionService {
   // ************************************** //
 
   createSessionGroup = (name: string, sort?: number): Promise<string> => {
+    if (enableCustomAuth) {
+      return restApiService.createSessionGroup(name, sort);
+    }
     return lambdaClient.sessionGroup.createSessionGroup.mutate({ name, sort });
   };
 
   removeSessionGroup = (id: string, removeChildren?: boolean) => {
+    if (enableCustomAuth) {
+      return restApiService.removeSessionGroup(id, removeChildren);
+    }
     return lambdaClient.sessionGroup.removeSessionGroup.mutate({ id, removeChildren });
   };
 
   removeSessionGroups = () => {
+    if (enableCustomAuth) {
+      return restApiService.removeAllSessionGroups();
+    }
     return lambdaClient.sessionGroup.removeAllSessionGroups.mutate();
   };
 
   updateSessionGroup = (id: string, value: Partial<SessionGroupItem>) => {
+    if (enableCustomAuth) {
+      return restApiService.updateSessionGroup(id, value);
+    }
     return lambdaClient.sessionGroup.updateSessionGroup.mutate({ id, value });
   };
 
   updateSessionGroupOrder = (sortMap: { id: string; sort: number }[]) => {
+    if (enableCustomAuth) {
+      return restApiService.updateSessionGroupOrder(sortMap);
+    }
     return lambdaClient.sessionGroup.updateSessionGroupOrder.mutate({ sortMap });
   };
 }

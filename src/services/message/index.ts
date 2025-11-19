@@ -18,6 +18,7 @@ import { INBOX_SESSION_ID } from '@/const/session';
 import { lambdaClient } from '@/libs/trpc/client';
 import { customMessageService } from '../customMessage';
 import { customSessionService } from '../customSession';
+import { restApiService } from '../restApi';
 
 import { abortableRequest } from '../utils/abortableRequest';
 
@@ -83,6 +84,10 @@ export class MessageService {
   };
 
   getGroupMessages = async (groupId: string, topicId?: string): Promise<UIChatMessage[]> => {
+    if (enableCustomAuth) {
+      const data = await restApiService.getMessages({ groupId, topicId });
+      return data as unknown as UIChatMessage[];
+    }
     const data = await lambdaClient.message.getMessages.query({
       groupId,
       topicId,
@@ -95,6 +100,9 @@ export class MessageService {
     range?: [string, string];
     startDate?: string;
   }): Promise<number> => {
+    if (enableCustomAuth) {
+      return restApiService.countMessages(params);
+    }
     return lambdaClient.message.count.query(params);
   };
 
@@ -103,26 +111,40 @@ export class MessageService {
     range?: [string, string];
     startDate?: string;
   }): Promise<number> => {
+    if (enableCustomAuth) {
+      return restApiService.countWords(params);
+    }
     return lambdaClient.message.countWords.query(params);
   };
 
   rankModels = async (): Promise<ModelRankItem[]> => {
+    if (enableCustomAuth) {
+      return restApiService.rankModels();
+    }
     return lambdaClient.message.rankModels.query();
   };
 
   getHeatmaps = async (): Promise<HeatmapsProps['data']> => {
+    if (enableCustomAuth) {
+      return restApiService.getHeatmaps();
+    }
     return lambdaClient.message.getHeatmaps.query();
   };
 
   updateMessageError = async (id: string, value: ChatMessageError) => {
     const error = value.type ? value : { body: value, message: value.message, type: 'ApplicationRuntimeError' };
 
-
+    if (enableCustomAuth) {
+      return restApiService.updateMessage(id, { error });
+    }
     return lambdaClient.message.update.mutate({ id, value: { error } });
   };
 
   updateMessagePluginArguments = async (id: string, value: string | Record<string, any>) => {
     const args = typeof value === 'string' ? value : JSON.stringify(value);
+    if (enableCustomAuth) {
+      return restApiService.updateMessagePluginState(id, { arguments: args });
+    }
     return lambdaClient.message.updateMessagePlugin.mutate({ id, value: { arguments: args } });
   };
 
@@ -131,6 +153,9 @@ export class MessageService {
     value: Partial<UpdateMessageParams>,
     options?: { sessionId?: string | null; topicId?: string | null },
   ): Promise<UpdateMessageResult> => {
+    if (enableCustomAuth) {
+      return restApiService.updateMessage(id, value, options);
+    }
     return lambdaClient.message.update.mutate({
       id,
       sessionId: options?.sessionId,
@@ -140,10 +165,16 @@ export class MessageService {
   };
 
   updateMessageTranslate = async (id: string, translate: Partial<ChatTranslate> | false) => {
+    if (enableCustomAuth) {
+      return restApiService.updateMessageTranslate(id, translate);
+    }
     return lambdaClient.message.updateTranslate.mutate({ id, value: translate as ChatTranslate });
   };
 
   updateMessageTTS = async (id: string, tts: Partial<ChatTTS> | false) => {
+    if (enableCustomAuth) {
+      return restApiService.updateMessageTTS(id, tts);
+    }
     return lambdaClient.message.updateTTS.mutate({ id, value: tts });
   };
 
@@ -152,6 +183,11 @@ export class MessageService {
     value: Partial<MessageMetadata>,
     options?: { sessionId?: string | null; topicId?: string | null },
   ): Promise<UpdateMessageResult> => {
+    if (enableCustomAuth) {
+      return abortableRequest.execute(`message-metadata-${id}`, (signal) =>
+        restApiService.updateMessageMetadata(id, value, options)
+      );
+    }
     return abortableRequest.execute(`message-metadata-${id}`, (signal) =>
       lambdaClient.message.updateMetadata.mutate(
         {
@@ -170,6 +206,9 @@ export class MessageService {
     value: Record<string, any>,
     options?: { sessionId?: string | null; topicId?: string | null },
   ): Promise<UpdateMessageResult> => {
+    if (enableCustomAuth) {
+      return restApiService.updateMessagePluginState(id, value, options);
+    }
     return lambdaClient.message.updatePluginState.mutate({
       id,
       sessionId: options?.sessionId,
@@ -183,6 +222,9 @@ export class MessageService {
     error: ChatMessagePluginError | null,
     options?: { sessionId?: string | null; topicId?: string | null },
   ): Promise<UpdateMessageResult> => {
+    if (enableCustomAuth) {
+      return restApiService.updateMessagePluginError(id, error, options);
+    }
     return lambdaClient.message.updatePluginError.mutate({
       id,
       sessionId: options?.sessionId,
@@ -196,6 +238,9 @@ export class MessageService {
     data: UpdateMessageRAGParams,
     options?: { sessionId?: string | null; topicId?: string | null },
   ): Promise<UpdateMessageResult> => {
+    if (enableCustomAuth) {
+      return restApiService.updateMessageRAG(id, data, options);
+    }
     return lambdaClient.message.updateMessageRAG.mutate({
       id,
       sessionId: options?.sessionId,
@@ -208,6 +253,9 @@ export class MessageService {
     id: string,
     options?: { sessionId?: string | null; topicId?: string | null },
   ): Promise<UpdateMessageResult> => {
+    if (enableCustomAuth) {
+      return restApiService.removeMessage(id, options);
+    }
     return lambdaClient.message.removeMessage.mutate({
       id,
       sessionId: options?.sessionId,
@@ -219,6 +267,9 @@ export class MessageService {
     ids: string[],
     options?: { sessionId?: string | null; topicId?: string | null },
   ): Promise<UpdateMessageResult> => {
+    if (enableCustomAuth) {
+      return restApiService.removeMessages(ids, options);
+    }
     return lambdaClient.message.removeMessages.mutate({
       ids,
       sessionId: options?.sessionId,
@@ -227,6 +278,9 @@ export class MessageService {
   };
 
   removeMessagesByAssistant = async (sessionId: string, topicId?: string) => {
+    if (enableCustomAuth) {
+      return restApiService.removeMessagesByAssistant(sessionId, topicId);
+    }
     return lambdaClient.message.removeMessagesByAssistant.mutate({
       sessionId: this.toDbSessionId(sessionId),
       topicId,
@@ -234,6 +288,9 @@ export class MessageService {
   };
 
   removeMessagesByGroup = async (groupId: string, topicId?: string) => {
+    if (enableCustomAuth) {
+      return restApiService.removeMessagesByGroup(groupId, topicId);
+    }
     return lambdaClient.message.removeMessagesByGroup.mutate({
       groupId,
       topicId,
@@ -241,6 +298,9 @@ export class MessageService {
   };
 
   removeAllMessages = async () => {
+    if (enableCustomAuth) {
+      return restApiService.removeAllMessages();
+    }
     return lambdaClient.message.removeAllMessages.mutate();
   };
 

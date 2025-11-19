@@ -3,6 +3,7 @@ import type { PartialDeep } from 'type-fest';
 
 import { lambdaClient } from '@/libs/trpc/client';
 import { customApiService } from '@/services/customApi';
+import { restApiService } from '@/services/restApi';
 import { UserGuide, UserInitializationState, UserPreference } from '@/types/user';
 import { UserSettings } from '@/types/user/settings';
 
@@ -17,45 +18,56 @@ export class UserService {
     duration: number;
     updatedAt: string;
   }> => {
+    if (enableCustomAuth) {
+      return restApiService.getUserRegistrationDuration();
+    }
     return lambdaClient.user.getUserRegistrationDuration.query();
   };
 
   getUserState = async (): Promise<UserInitializationState> => {
+    if (enableCustomAuth) {
+      return restApiService.getUserState();
+    }
     return lambdaClient.user.getUserState.query();
   };
 
   getUserSSOProviders = async (): Promise<AdapterAccount[]> => {
+    if (enableCustomAuth) {
+      return restApiService.getUserSSOProviders();
+    }
     return lambdaClient.user.getUserSSOProviders.query();
   };
 
   unlinkSSOProvider = async (provider: string, providerAccountId: string) => {
+    if (enableCustomAuth) {
+      return restApiService.unlinkSSOProvider(provider, providerAccountId);
+    }
     return lambdaClient.user.unlinkSSOProvider.mutate({ provider, providerAccountId });
   };
 
   makeUserOnboarded = async () => {
+    if (enableCustomAuth) {
+      return restApiService.makeUserOnboarded();
+    }
     return lambdaClient.user.makeUserOnboarded.mutate();
   };
 
   updateAvatar = async (avatar: string) => {
+    if (enableCustomAuth) {
+      return restApiService.updateAvatar(avatar);
+    }
     return lambdaClient.user.updateAvatar.mutate(avatar);
   };
 
   updatePreference = async (preference: Partial<UserPreference>) => {
-    // Update local DB (PGLite)
-    const result = await lambdaClient.user.updatePreference.mutate(preference);
-    
-    // If custom auth is enabled, sync with backend
     if (enableCustomAuth) {
-      try {
-        // Get all preferences from local state to sync with backend
-        await this.syncPreferencesToBackend(preference);
-      } catch (error) {
-        console.error('[UserService] Failed to sync preferences to backend:', error);
-        // Don't throw - local update succeeded, backend sync is optional
-      }
+      // Update backend directly
+      await restApiService.updatePreference(preference);
+      // Also update local DB for compatibility
+      return lambdaClient.user.updatePreference.mutate(preference);
     }
-    
-    return result;
+    // Update local DB (PGLite)
+    return lambdaClient.user.updatePreference.mutate(preference);
   };
 
   /**
@@ -138,23 +150,20 @@ export class UserService {
   };
 
   updateGuide = async (guide: Partial<UserGuide>) => {
+    if (enableCustomAuth) {
+      return restApiService.updateGuide(guide);
+    }
     return lambdaClient.user.updateGuide.mutate(guide);
   };
 
   updateUserSettings = async (value: PartialDeep<UserSettings>, signal?: AbortSignal) => {
-    const result = await lambdaClient.user.updateSettings.mutate(value, { signal });
-    
-    // If custom auth is enabled, sync settings with backend
     if (enableCustomAuth) {
-      try {
-        await this.syncSettingsToBackend(value);
-      } catch (error) {
-        console.error('[UserService] Failed to sync settings to backend:', error);
-        // Don't throw - local update succeeded
-      }
+      // Update backend directly
+      await restApiService.updateSettings(value);
+      // Also update local DB for compatibility
+      return lambdaClient.user.updateSettings.mutate(value, { signal });
     }
-    
-    return result;
+    return lambdaClient.user.updateSettings.mutate(value, { signal });
   };
 
   /**
@@ -200,20 +209,12 @@ export class UserService {
   };
 
   resetUserSettings = async () => {
-    const result = await lambdaClient.user.resetSettings.mutate();
-    
-    // If custom auth is enabled, reset backend preferences too
     if (enableCustomAuth) {
-      try {
-        await customApiService.request('api/user/preferences', {
-          method: 'DELETE',
-        });
-      } catch (error) {
-        console.error('[UserService] Failed to reset backend preferences:', error);
-      }
+      await restApiService.resetSettings();
+      // Also reset local DB for compatibility
+      return lambdaClient.user.resetSettings.mutate();
     }
-    
-    return result;
+    return lambdaClient.user.resetSettings.mutate();
   };
 }
 

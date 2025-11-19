@@ -32,6 +32,8 @@
   "scripts": {
     "prebuild": "tsx scripts/prebuild.mts && npm run lint",
     "prebuild:docker": "tsx scripts/prebuild.mts && npm run lint:ts && npm run lint:style",
+    "prebuild:docker:parallel": "tsx scripts/prebuild.mts && npm run lint:ts:parallel & npm run lint:style & wait",
+    "lint:ts:parallel": "ESLINT_CACHE=true eslint \"{src,tests}/**/*.{js,jsx,ts,tsx}\" --fix --cache --cache-location .eslintcache",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=6144 next build --webpack",
     "postbuild": "npm run build-sitemap && npm run build-migrate-db",
     "build-migrate-db": "bun run db:migrate",
@@ -67,7 +69,7 @@
     "lint:md": "remark . --silent --output",
     "lint:mdx": "npm run workflow:mdx && remark \"docs/**/*.mdx\" -r ./.remarkrc.mdx.js --silent --output && eslint \"docs/**/*.mdx\" --quiet --fix",
     "lint:style": "stylelint \"{src,tests}/**/*.{js,jsx,ts,tsx}\" --fix",
-    "lint:ts": "eslint \"{src,tests}/**/*.{js,jsx,ts,tsx}\" --fix",
+    "lint:ts": "eslint \"{src,tests}/**/*.{js,jsx,ts,tsx}\" --fix --cache --cache-location .eslintcache",
     "prepare": "husky",
     "prettier": "prettier -c --write \"**/**\"",
     "pull": "git pull",

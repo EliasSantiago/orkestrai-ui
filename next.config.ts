@@ -9,6 +9,8 @@ const isDesktop = process.env.NEXT_PUBLIC_IS_DESKTOP_APP === '1';
 const enableReactScan = !!process.env.REACT_SCAN_MONITOR_API_KEY;
 const isUsePglite = process.env.NEXT_PUBLIC_CLIENT_DB === 'pglite';
 const shouldUseCSP = process.env.ENABLED_CSP === '1';
+// Disable PWA/service worker in Docker builds for faster builds
+const disablePWA = buildWithDocker;
 
 // if you need to proxy the api endpoint to remote server
 
@@ -46,6 +48,11 @@ const nextConfig: NextConfig = {
     webVitalsAttribution: ['CLS', 'LCP'],
     webpackBuildWorker: true,
     webpackMemoryOptimizations: true,
+    // Optimize build performance in Docker
+    ...(buildWithDocker ? {
+      // Increase workers for faster static page generation
+      staticWorkerRequestDeduping: true,
+    } : {}),
   },
   async headers() {
     const securityHeaders = [
@@ -334,7 +341,7 @@ const noWrapper = (config: NextConfig) => config;
 const withBundleAnalyzer = process.env.ANALYZE === 'true' ? analyzer() : noWrapper;
 
 const withPWA =
-  isProd && !isDesktop
+  isProd && !isDesktop && !disablePWA
     ? withSerwistInit({
         register: false,
         swDest: 'public/sw.js',

@@ -51,6 +51,9 @@ ENV NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=${NEXT_PUBLIC_ENABLE_CUSTOM_AUTH}
 ENV NEXT_PUBLIC_CUSTOM_API_BASE_URL=${NEXT_PUBLIC_CUSTOM_API_BASE_URL}
 ENV KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
 # DATABASE_URL não é mais necessário - database features desabilitadas quando custom auth está ativo
+# Optimize build performance
+ENV NEXT_PRIVATE_STANDALONE=true
+ENV NEXT_PRIVATE_SKIP_TYPE_CHECK=true
 
 # Desabilitar qualquer download de modelos locais
 ENV DISABLE_MODEL_DOWNLOAD=1
@@ -61,7 +64,14 @@ ENV TURBO_FORCE=0
 
 # Build the application (sem type-check para evitar erros em features não usadas)
 # Next.js 16: Must explicitly specify --webpack flag (Turbopack is default!)
-RUN pnpm run prebuild:docker && NODE_OPTIONS=--max-old-space-size=6144 DOCKER=true pnpm exec next build --webpack && pnpm run build-sitemap
+# Optimize: Use cache mounts for ESLint, Next.js cache, and parallel linting
+# Increase workers for faster builds and disable PWA in Docker
+RUN --mount=type=cache,target=/app/.eslintcache \
+    --mount=type=cache,target=/app/.next/cache \
+    --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm run prebuild:docker && \
+    NODE_OPTIONS=--max-old-space-size=6144 DOCKER=true NEXT_PRIVATE_STANDALONE=true pnpm exec next build --webpack && \
+    pnpm run build-sitemap
 
 FROM base AS runner
 

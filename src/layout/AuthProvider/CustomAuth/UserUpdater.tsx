@@ -1,7 +1,6 @@
 'use client';
 
 import { memo, useEffect } from 'react';
-import { createStoreUpdater } from 'zustand-utils';
 
 import { enableCustomAuth } from '@/const/auth';
 import { customAuthService } from '@/services/customAuth';
@@ -10,8 +9,6 @@ import { LobeUser } from '@/types/user';
 
 // Update the user data into the context when using custom auth
 const CustomAuthUserUpdater = memo(() => {
-  const useStoreUpdater = createStoreUpdater(useUserStore);
-
   useEffect(() => {
     if (!enableCustomAuth) {
       return;
@@ -20,9 +17,11 @@ const CustomAuthUserUpdater = memo(() => {
     const updateUserState = async () => {
       const isAuthenticated = customAuthService.isAuthenticated();
       
-      // Update isLoaded and isSignedIn
-      useStoreUpdater('isLoaded', true);
-      useStoreUpdater('isSignedIn', isAuthenticated);
+      // Update isLoaded and isSignedIn using setState directly
+      useUserStore.setState({ 
+        isLoaded: true,
+        isSignedIn: isAuthenticated 
+      });
 
       if (isAuthenticated) {
         try {
@@ -45,7 +44,7 @@ const CustomAuthUserUpdater = memo(() => {
         } catch (error) {
           console.error('[CustomAuthUserUpdater] Failed to fetch user:', error);
           // If fetch fails, user might not be authenticated
-          useStoreUpdater('isSignedIn', false);
+          useUserStore.setState({ isSignedIn: false });
         }
       } else {
         // Clear user data if not authenticated
@@ -74,7 +73,7 @@ const CustomAuthUserUpdater = memo(() => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
     };
-  }, [useStoreUpdater]);
+  }, []);
 
   return null;
 });

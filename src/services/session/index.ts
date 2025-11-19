@@ -57,44 +57,8 @@ export class SessionService {
   getGroupedSessions = async (): Promise<ChatSessionList> => {
     // If custom auth is enabled, ALWAYS use custom API - never fallback to lambda
     if (enableCustomAuth) {
-      const sessionIds = await customSessionService.getSessions();
-      
-      // Convert to ChatSessionList format
-      // Group by date (simplified - you might want to enhance this)
-      const sessions = await Promise.all(
-        sessionIds.map(async (sessionId) => {
-          try {
-            const info = await customSessionService.getSessionInfo(sessionId);
-            return {
-              id: sessionId,
-              type: 'agent' as const,
-              createdAt: info.last_activity ? new Date(info.last_activity).getTime() : Date.now(),
-              updatedAt: info.last_activity ? new Date(info.last_activity).getTime() : Date.now(),
-              meta: {
-                title: `Session ${sessionId.substring(0, 8)}`,
-              },
-            };
-          } catch {
-            return {
-              id: sessionId,
-              type: 'agent' as const,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-              meta: {
-                title: `Session ${sessionId.substring(0, 8)}`,
-              },
-            };
-          }
-        }),
-      );
-
-      // Group by date
-      const grouped: ChatSessionList = {
-        sessionGroups: [],
-        sessions: sessions.sort((a, b) => b.updatedAt - a.updatedAt),
-      };
-
-      return grouped;
+      // Use restApiService which returns the correct format from backend
+      return restApiService.getGroupedSessions();
     }
 
     // Only use lambda client when custom auth is NOT enabled

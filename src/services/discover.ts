@@ -5,6 +5,12 @@ import { lambdaClient } from '@/libs/trpc/client';
 import { globalHelpers } from '@/store/global/helpers';
 import { useUserStore } from '@/store/user';
 import { preferenceSelectors } from '@/store/user/selectors';
+import { restApiService } from './restApi';
+
+// Check if custom auth is enabled
+const enableCustomAuth =
+  typeof window !== 'undefined' &&
+  process.env.NEXT_PUBLIC_ENABLE_CUSTOM_AUTH === '1';
 import {
   AssistantListResponse,
   AssistantMarketSource,
@@ -253,6 +259,18 @@ class DiscoverService {
 
   getPluginList = async (params: PluginQueryParams = {}): Promise<PluginListResponse> => {
     const locale = globalHelpers.getCurrentLanguage();
+    
+    // If custom auth is enabled, use REST API
+    if (enableCustomAuth) {
+      return restApiService.getPluginList({
+        ...params,
+        locale,
+        page: params.page ? Number(params.page) : 1,
+        pageSize: params.pageSize ? Number(params.pageSize) : 20,
+      });
+    }
+    
+    // Otherwise use tRPC
     return lambdaClient.market.getPluginList.query({
       ...params,
       locale,

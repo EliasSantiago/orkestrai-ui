@@ -4,6 +4,8 @@
  * Replaces tRPC calls with direct REST endpoints
  */
 
+import { ChatSessionList } from '@/types/session';
+
 import { customAuthService } from '../customAuth';
 
 // Check if custom auth is enabled
@@ -117,8 +119,10 @@ export class RestApiService {
   // Session Routes
   // ============================================
 
-  async getGroupedSessions() {
-    return this.request('api/sessions/grouped');
+  async getGroupedSessions(): Promise<ChatSessionList> {
+    // Backend now returns the correct format directly
+    // { sessionGroups: [], sessions: LobeAgentSession[] }
+    return this.request<ChatSessionList>('api/sessions/grouped');
   }
 
   async createSession(data: any) {
@@ -569,8 +573,27 @@ export class RestApiService {
   // Market Routes
   // ============================================
 
-  async getPluginList(params?: { category?: string; locale?: string }) {
-    const query = params ? '?' + new URLSearchParams(params as any).toString() : '';
+  async getPluginList(params?: { 
+    category?: string; 
+    locale?: string;
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    sort?: string;
+    order?: 'asc' | 'desc';
+  }) {
+    const queryParams: Record<string, string> = {};
+    if (params?.category) queryParams.category = params.category;
+    if (params?.locale) queryParams.locale = params.locale;
+    if (params?.page) queryParams.page = params.page.toString();
+    if (params?.pageSize) queryParams.pageSize = params.pageSize.toString();
+    if (params?.q) queryParams.q = params.q;
+    if (params?.sort) queryParams.sort = params.sort;
+    if (params?.order) queryParams.order = params.order;
+    
+    const query = Object.keys(queryParams).length > 0 
+      ? '?' + new URLSearchParams(queryParams).toString() 
+      : '';
     return this.request(`api/market${query}`);
   }
 

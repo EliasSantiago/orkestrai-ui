@@ -170,7 +170,7 @@ class AiChatService {
   sendMessageInServer = async (
     params: SendMessageServerParams,
     abortController: AbortController,
-  ): Promise<SendMessageServerResponse> {
+  ): Promise<SendMessageServerResponse> => {
     // If custom auth is enabled, ALWAYS use custom API - never fallback to lambda
     if (enableCustomAuth) {
       // Check if we have authentication token

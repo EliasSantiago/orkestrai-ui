@@ -184,7 +184,8 @@ export class MessageService {
     options?: { sessionId?: string | null; topicId?: string | null },
   ): Promise<UpdateMessageResult> => {
     if (enableCustomAuth) {
-      return abortableRequest.execute(`message-metadata-${id}`, (signal) =>
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      return abortableRequest.execute(`message-metadata-${id}`, (_signal) =>
         restApiService.updateMessageMetadata(id, value, options)
       );
     }

@@ -106,21 +106,13 @@ jobs:
           docker compose -f docker-compose.prod.yml down || true
           
           # Build with cache optimization
-          # Check if cache image exists and use it if available
-          if docker image inspect orkestrai-ui:latest >/dev/null 2>&1; then
-            echo "Using existing image as cache..."
-            docker compose -f docker-compose.prod.yml build \
-              --progress=plain \
-              --build-arg BUILDKIT_INLINE_CACHE=1 \
-              --cache-from orkestrai-ui:latest \
-              --parallel
-          else
-            echo "No cache image found, building without cache..."
-            docker compose -f docker-compose.prod.yml build \
-              --progress=plain \
-              --build-arg BUILDKIT_INLINE_CACHE=1 \
-              --parallel
-          fi
+          # BuildKit will automatically use cache from previous builds
+          # when BUILDKIT_INLINE_CACHE=1 is set
+          echo "Building application with BuildKit cache..."
+          docker compose -f docker-compose.prod.yml build \
+            --progress=plain \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --parallel
           
           # Start containers
           docker compose -f docker-compose.prod.yml up -d

@@ -67,7 +67,7 @@ jobs:
 
           # Open SSH and send the remote script with secrets expanded locally
           ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key -p "${GCP_SSH_PORT}" "${GCP_USERNAME}@${GCP_HOST}" <<SSH_REMOTE
-          set -euo pipefail
+          set -eo pipefail
 
           cd ~
 
@@ -101,6 +101,9 @@ jobs:
           
           # Enable BuildKit cache mount support
           export BUILDKIT_PROGRESS=plain
+
+          # Stop existing containers
+          docker compose -f docker-compose.prod.yml down || true
           
           # Use cache from previous builds if available
           CACHE_FROM=""
@@ -108,16 +111,20 @@ jobs:
             CACHE_FROM="--cache-from orkestrai-ui:latest"
             echo "Using existing image as cache..."
           fi
-
-          # Stop existing containers
-          docker compose -f docker-compose.prod.yml down || true
           
           # Build with cache optimization
-          docker compose -f docker-compose.prod.yml build \
-            --progress=plain \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            $CACHE_FROM \
-            --parallel
+          if [ -n "$CACHE_FROM" ]; then
+            docker compose -f docker-compose.prod.yml build \
+              --progress=plain \
+              --build-arg BUILDKIT_INLINE_CACHE=1 \
+              $CACHE_FROM \
+              --parallel
+          else
+            docker compose -f docker-compose.prod.yml build \
+              --progress=plain \
+              --build-arg BUILDKIT_INLINE_CACHE=1 \
+              --parallel
+          fi
           
           # Start containers
           docker compose -f docker-compose.prod.yml up -d

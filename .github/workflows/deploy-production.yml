@@ -57,7 +57,7 @@ jobs:
           KEY_VAULTS_SECRET: ${{ secrets.KEY_VAULTS_SECRET || '' }}
           GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY || '' }}
         run: |
-          set -euo pipefail
+          set -eo pipefail
 
           # Write SSH key to a temp file
           echo "Writing SSH key..."
@@ -88,11 +88,11 @@ jobs:
 
           # Create .env file with secrets (explicit values)
           echo "Creating .env file with production secrets..."
-          cat > .env <<EOF
-          CUSTOM_API_URL=${CUSTOM_API_URL}
-          KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
-          NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1
-          EOF
+          {
+            echo "CUSTOM_API_URL=${CUSTOM_API_URL}"
+            echo "KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}"
+            echo "NEXT_PUBLIC_ENABLE_CUSTOM_AUTH=1"
+          } > .env
 
           # Build and start with docker compose (builds image locally from repo)
           echo "Building and starting application (building from source with cache)..."
@@ -105,21 +105,17 @@ jobs:
           # Stop existing containers
           docker compose -f docker-compose.prod.yml down || true
           
-          # Use cache from previous builds if available
-          CACHE_FROM=""
-          if docker image inspect orkestrai-ui:latest >/dev/null 2>&1; then
-            CACHE_FROM="--cache-from orkestrai-ui:latest"
-            echo "Using existing image as cache..."
-          fi
-          
           # Build with cache optimization
-          if [ -n "$CACHE_FROM" ]; then
+          # Check if cache image exists and use it if available
+          if docker image inspect orkestrai-ui:latest >/dev/null 2>&1; then
+            echo "Using existing image as cache..."
             docker compose -f docker-compose.prod.yml build \
               --progress=plain \
               --build-arg BUILDKIT_INLINE_CACHE=1 \
-              $CACHE_FROM \
+              --cache-from orkestrai-ui:latest \
               --parallel
           else
+            echo "No cache image found, building without cache..."
             docker compose -f docker-compose.prod.yml build \
               --progress=plain \
               --build-arg BUILDKIT_INLINE_CACHE=1 \
